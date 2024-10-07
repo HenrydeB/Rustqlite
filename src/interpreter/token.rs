@@ -1,20 +1,20 @@
 
 pub enum TokenType {
     // keywords 
-    Select, All, From, Where, Create, Table, TableName, 
+    Select, All, From, Where, Create, TableName, 
     Insert, Into, Update, Delete, 
     
     //datatypes
     Int, VarChar, Bit,
 
     //punctuation
-    LeftParen, RightParen, Comma, SemiColon, Asterisk,
+    LeftParen, RightParen, Comma, SemiColon, Asterisk, Quote,
 
     //ops
     Equal, Greater, Less, NotEqual, And, Or, Not,
 
     //Literals
-    Number, String,
+    Number, String, True, False, 
 
     //Identifier
     Identifier, Column, Table,
@@ -37,7 +37,7 @@ pub struct Token {
 }
 
 impl Token{
-    pub fn new(token_type: TokenType, lexeme: String, literal:Literal) -> Self{
+    pub fn new(token_type: TokenType, lexeme: String, literal:Option<Literal>) -> Self{
         Token{
             token_type,
             lexeme,

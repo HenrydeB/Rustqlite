@@ -12,16 +12,16 @@ use crate::interpreter::token::{TokenType, Token, Literal};
 //so we have a vector that contains our tokens
 //then as we collect the values we can insert the corresponding value
 //at the same index as said token we had been defining
-
-struct Scanner<'s>{
+#[derive(Debug)]
+pub struct Scanner<'s>{
     cmd: &'s str,
     position: usize,
 }
 
 impl<'s> Scanner<'s>{
-   fn new(statement: &'s str) -> Self{
+  pub fn new(statement: &'s str) -> Self{
         Scanner{
-            statement,
+            cmd: statement,
             position: 0
         }
    }
@@ -34,16 +34,17 @@ impl<'s> Scanner<'s>{
 
     fn advance(&mut self) -> Option<char>{ 
         if self.position < self.cmd.len() {
-            let self_slice = self.cmd[self.position..];
+            let self_slice = &self.cmd[self.position..];
             
             match self_slice.chars().next() {
                 Some(char) => {
                     self.position += 1;
-                    Some(char)
+                    return Some(char)
                 }
-                None => '\0' //temp
+                None => return Some('\0') //temp
             }
         }
+        None
     }
 
     /// peeking ahead will help us identify certain
@@ -51,57 +52,74 @@ impl<'s> Scanner<'s>{
     /// Looks at next char without moving position forward
 
     fn peek(&self) -> Option<char>{
-        if self.position == self.cmd.length{
-            Some('\0')
+        if self.position == self.cmd.len(){
+           return Some('\0')
         }
        self.cmd[self.position..].chars().next() 
     }
 
-     fn is_alpha(key: &str) -> {
-        keyword.chars().all(|c| c.is_alphabetic())
+     fn is_alpha(&self, key: &str) -> bool {
+        if key == "true" || key == "false"{
+            return false;
+        }
+        key.chars().all(|c| c.is_alphabetic())
     }
 
-     fn is_numeric(key: &str){
-        keyword.chars().all(|c| c.is_numeric())
+     fn is_numeric(&self, key: &str) -> bool{
+        key.chars().all(|c| c.is_numeric())
     }
     
     /// This function handles scanning the input string itself,
     /// identifying keys to be turned into tokens for the parser to 
     /// verify in the following step
 
-     fn scan(&mut self) -> Vec<Token>{
+     pub fn scan(&mut self) -> Vec<Token>{
         let mut tokens: Vec<Token> = Vec::new();
         
         loop{
             let curr = self.peek();
-            
-            if curr.is_alphabetic() || curr.is_numeric() {
-                //handle alpha
+             
+            if curr.expect("invalid sequence").is_alphabetic() || 
+                curr.expect("invalid sequence").is_numeric() {
+                //handle alphanumeric
                 tokens.push(self.scan_alphanumeric_sequence());
             }else {
-                let token_type: TokenType = get_tokentype(&curr);
-                let literal_type: Literal = get_literal_type(&curr);
+                let mut input = String::from(curr.expect("invalid sequence"));
 
-                let new_token = Token::new(token_type, curr, literal_type);
+                match curr{
+                    Some(curr_char) => input.push(curr_char),
+                    None => continue,
+                }
+
+                let token_type = self.get_tokentype(&input)
+                                        .expect("invalid token");
+                let literal_type = self.get_literal_type(&input);
+                
+                let new_token = Token::new(token_type, input, literal_type);
+                tokens.push(new_token);
             }
             self.advance();
         }
     }
 
     fn scan_alphanumeric_sequence(&mut self) -> Token{
-        let coll = String::new();
+        let mut coll = String::new();
 
         loop{
             let curr = self.peek();
-            if curr.is_whitespace() {
+            if curr.expect("invalid character").is_whitespace() {
                 break;
             }
-            coll.push(curr);
+
+            match curr{
+                Some(curr_char) => coll.push(curr_char),
+                None => println!("invalid character detected"),
+            }
             self.advance();
         }
         
-        let token_type: TokenType = get_tokentype(&coll);
-        let literal_type: Literal = get_literal_type(&coll);
+        let token_type = self.get_tokentype(&coll).expect("invalid token");
+        let literal_type = self.get_literal_type(&coll);
 
         let new_token = Token::new(token_type, coll, literal_type);
         new_token
@@ -109,7 +127,7 @@ impl<'s> Scanner<'s>{
     
      /// Pretty self explanatory, we pass in a constructed
      /// part of the SQL command so we can identify the type
-     fn get_tokentype(keyword: &str) -> Option<TokenType>{
+     fn get_tokentype(&self, keyword: &str) -> Option<TokenType>{
         match keyword{
             "select" => Some(TokenType::Select),
             "all" => Some(TokenType::All),
@@ -133,12 +151,12 @@ impl<'s> Scanner<'s>{
             "false" => Some(TokenType::False),
             "true" => Some(TokenType::True),
             
-            "\n" => Some(),
+            "\n" => Some(TokenType::EOF), //error
             _ => {
-               if is_numeric() {
+               if self.is_numeric(keyword) {
                     Some(TokenType::Number) //will need to expand for float
-               } else if is_alpha()){
-                   //need to figure this out... 
+               } else if self.is_alpha(keyword){
+                    Some(TokenType::String) 
                } else {
                     None
                }
@@ -146,23 +164,26 @@ impl<'s> Scanner<'s>{
         }
     }
 
-    fn check_boolean(literal: &str) -> Option<bool> {
+     /*
+    fn check_boolean(&self, literal: &str) -> bool {
        match literal{
             "equals" | "greater" | "less" | 
-                "notequal" | "and" | "or" | "not" => Some(true),
-                _ => Some(false),
-       }
-       None
+                "notequal" | "and" | "or" | "not" => true,
+                _ => false,
+       };
+      false 
     }
-
-    fn get_literal_type(literal: &str) -> Option<Literal>{
+*/
+    fn get_literal_type(&self, literal: &str) -> Option<Literal>{
         
-        if is_alpha(literal) {
-            Some(Literal::String(String::from(literal))
-        } else if is_numeric(literal) {
-            Some(Literal::Number(literal.parse::<i64>().unwrap())
-        } else if let b_literal = check_boolean(literal){
-            Some(Literal::Boolean(b_literal))
+        if self.is_alpha(literal) {
+            Some(Literal::String(String::from(literal)))
+        } else if self.is_numeric(literal) {
+            Some(Literal::Number(literal.parse::<i64>().unwrap()))
+        } else if literal == "true" {
+            Some(Literal::Boolean(true))
+        } else if literal == "false" { 
+            Some(Literal::Boolean(false))
         } else if literal == "null" {
             Some(Literal::Null)
         } else {
