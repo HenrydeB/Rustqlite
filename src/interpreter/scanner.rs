@@ -58,11 +58,11 @@ impl<'s> Scanner<'s>{
        self.cmd[self.position..].chars().next() 
     }
 
-     fn is_alpha(&self, key: &str) -> bool {
+     fn is_alphanumeric(&self, key: &str) -> bool {
         if key == "true" || key == "false"{
             return false;
         }
-        key.chars().all(|c| c.is_alphabetic())
+        key.chars().all(|c| c.is_alphanumeric())
     }
 
      fn is_numeric(&self, key: &str) -> bool{
@@ -78,28 +78,55 @@ impl<'s> Scanner<'s>{
         
         loop{
             let curr = self.peek();
-             
+
+            if curr.expect("invalid sequence").is_whitespace() { 
+                match self.advance(){
+                    Some('\0') | None => break,
+                    _ => continue,
+                }
+            }
+
+            if curr.unwrap() == '\0'{
+                break;
+            }
+
             if curr.expect("invalid sequence").is_alphabetic() || 
                 curr.expect("invalid sequence").is_numeric() {
                 //handle alphanumeric
-                tokens.push(self.scan_alphanumeric_sequence());
-            }else {
-                let mut input = String::from(curr.expect("invalid sequence"));
+                let new_token = self.scan_alphanumeric_sequence();
+                tokens.push(new_token);
+                dbg!("{new_token:?}");
 
-                match curr{
-                    Some(curr_char) => input.push(curr_char),
-                    None => continue,
+                let check_curr = self.peek();
+                if check_curr.is_some() && (check_curr.unwrap() == ',' 
+                                            || check_curr.unwrap() == ')'){
+                    // if we have a comma after an alphanumeric, we want to
+                    // process it separately
+                    continue;
+                } else if check_curr.is_some() && check_curr.unwrap() == '\0'{
+                    break;
                 }
+            }else {
+                let input = String::from(curr.expect("invalid sequence"));
 
                 let token_type = self.get_tokentype(&input)
                                         .expect("invalid token");
                 let literal_type = self.get_literal_type(&input);
                 
                 let new_token = Token::new(token_type, input, literal_type);
-                tokens.push(new_token);
+                dbg!("{new_token:?}");
+                tokens.push(new_token); 
             }
-            self.advance();
+            
+            let move_next = self.advance();
+
+            match move_next {
+                    Some('\0') | None => break,
+                    _ => {},
+                }
         }
+        dbg!("{tokens:?}");
+        tokens
     }
 
     fn scan_alphanumeric_sequence(&mut self) -> Token{
@@ -107,20 +134,27 @@ impl<'s> Scanner<'s>{
 
         loop{
             let curr = self.peek();
-            if curr.expect("invalid character").is_whitespace() {
-                break;
-            }
 
             match curr{
+                Some(curr_char) if curr_char.is_whitespace() || 
+                    curr_char == '\0' ||
+                    curr_char == ',' || 
+                    curr_char == '(' ||
+                    curr_char == ')' => {
+                    break
+                },
                 Some(curr_char) => coll.push(curr_char),
                 None => println!("invalid character detected"),
             }
-            self.advance();
+            match self.advance(){
+                Some('\0') | None => break,
+                _ => { },
+            }
         }
         
         let token_type = self.get_tokentype(&coll).expect("invalid token");
         let literal_type = self.get_literal_type(&coll);
-
+        
         let new_token = Token::new(token_type, coll, literal_type);
         new_token
     }
@@ -130,7 +164,7 @@ impl<'s> Scanner<'s>{
      fn get_tokentype(&self, keyword: &str) -> Option<TokenType>{
         match keyword{
             "select" => Some(TokenType::Select),
-            "all" => Some(TokenType::All),
+            "*" => Some(TokenType::All),
             "from" => Some(TokenType::From),
             "where" => Some(TokenType::Where),
             "create" => Some(TokenType::Create),
@@ -138,7 +172,10 @@ impl<'s> Scanner<'s>{
             "insert" => Some(TokenType::Insert),
             "into" => Some(TokenType::Into),
             "update" => Some(TokenType::Update),
+            "values" => Some(TokenType::Values),
+            "set" => Some(TokenType::Set),
             "delete" => Some(TokenType::Delete),
+            "drop" => Some(TokenType::Drop),
             "int" => Some(TokenType::Int),
             "varchar" => Some(TokenType::VarChar),
             "bit" => Some(TokenType::Bit),
@@ -146,17 +183,18 @@ impl<'s> Scanner<'s>{
             "equals" => Some(TokenType::Equal),
             "(" => Some(TokenType::LeftParen),
             ")" => Some(TokenType::RightParen),
-            "\'" => Some(TokenType::Quote),
+            "\'" => Some(TokenType::Quote), //this needs to handle contents
             "and" => Some(TokenType::And),
             "false" => Some(TokenType::False),
             "true" => Some(TokenType::True),
-            
-            "\n" => Some(TokenType::EOF), //error
+            "," => Some(TokenType::Comma),
+            ";" => Some(TokenType::SemiColon),
+            "\0" => Some(TokenType::EOF), //error
             _ => {
                if self.is_numeric(keyword) {
                     Some(TokenType::Number) //will need to expand for float
-               } else if self.is_alpha(keyword){
-                    Some(TokenType::String) 
+               } else if self.is_alphanumeric(keyword){
+                    Some(TokenType::Identifier) 
                } else {
                     None
                }
@@ -176,10 +214,10 @@ impl<'s> Scanner<'s>{
 */
     fn get_literal_type(&self, literal: &str) -> Option<Literal>{
         
-        if self.is_alpha(literal) {
-            Some(Literal::String(String::from(literal)))
-        } else if self.is_numeric(literal) {
+        if self.is_numeric(literal) {
             Some(Literal::Number(literal.parse::<i64>().unwrap()))
+        } else if self.is_alphanumeric(literal) {
+            Some(Literal::String(String::from(literal)))
         } else if literal == "true" {
             Some(Literal::Boolean(true))
         } else if literal == "false" { 
@@ -192,31 +230,5 @@ impl<'s> Scanner<'s>{
 
     } 
 }
-
-
-/*
-pub enum Literal{
-    Number(i64),
-    String(String),
-    Boolean(bool),
-    Null, //this one may be difficult to implement
-    None
-}
-
-pub struct Token {
-    pub token_type: TokenType,
-    pub lexeme: String,
-    pub literal: Option<Literal>,
-}
-
-impl Token{
-    pub fn new(token_type: TokenType, lexeme: String, literal:Literal) -> Self{
-        Token{
-            token_type,
-            lexeme,
-            literal, //see if you can pass none if there are no literals
-        }
-    }
-*/
 
 

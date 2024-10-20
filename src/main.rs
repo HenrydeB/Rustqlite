@@ -26,6 +26,7 @@ fn main() {
             println!("exiting...");
             break;
         }
+        interpreter::interpret(&trimmed);
 
         //process commands
         println!("===========================================================");

@@ -1,8 +1,9 @@
 
+#[derive(Debug, Clone, Copy)]
 pub enum TokenType {
     // keywords 
     Select, All, From, Where, Create, TableName, 
-    Insert, Into, Update, Delete, 
+    Insert, Into, Update, Delete, Drop, Set, Values,  
     
     //datatypes
     Int, VarChar, Bit,
@@ -22,6 +23,7 @@ pub enum TokenType {
     EOF
 }
 
+#[derive(Debug, Clone)]
 pub enum Literal{
     Number(i64),
     String(String),
@@ -30,6 +32,7 @@ pub enum Literal{
     None
 }
 
+#[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
