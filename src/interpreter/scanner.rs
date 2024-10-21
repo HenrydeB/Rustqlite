@@ -128,7 +128,6 @@ impl<'s> Scanner<'s>{
                 let literal_type = self.get_literal_type(&input);
                 
                 let new_token = Token::new(token_type, input, literal_type);
-                dbg!("{new_token:?}");
                 tokens.push(new_token); 
             }
             

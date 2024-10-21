@@ -29,13 +29,13 @@ fn main() {
         interpreter::interpret(&trimmed);
 
         //process commands
-        println!("===========================================================");
+/*        println!("===========================================================");
         println!("===CName===CName===CName===CName===CName===CName===CName===");
         println!("|  CName | CName | CName | CName | CName | CName | CName  |");
         println!("|  CName | CName | CName | CName | CName | CName | CName  |");
         println!("|  CName | CName | CName | CName | CName | CName | CName  |");
         println!("|  CName | CName | CName | CName | CName | CName | CName  |");
-        println!("===========================================================");
+        println!("===========================================================");*/
     }
 
 

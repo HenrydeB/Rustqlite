@@ -12,6 +12,6 @@ pub fn interpret(cmd: &str){
 
     let mut parser: Parser = Parser::new(&tokens);
     let res = parser.parse();
-    println!("{:?}", tokens);
+//    println!("{:?}", tokens);
     println!("{:?}", res);
 }
