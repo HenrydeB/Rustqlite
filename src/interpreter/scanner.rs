@@ -85,21 +85,35 @@ impl<'s> Scanner<'s>{
                     _ => continue,
                 }
             }
-
+            
+            //for now only single line
             if curr.unwrap() == '\0'{
                 break;
             }
 
+            if curr.unwrap() == '\''{
+                println!("here");
+            }
+
+            if curr.unwrap() == ';'{
+                let token_type = TokenType::SemiColon;
+                let input = String::from(curr.unwrap());
+                let new_token = Token::new(token_type, input, None);
+                tokens.push(new_token);
+                break;
+            }
+
             if curr.expect("invalid sequence").is_alphabetic() || 
-                curr.expect("invalid sequence").is_numeric() {
+                curr.expect("invalid sequence").is_numeric() || 
+                curr.unwrap() == '\'' {
                 //handle alphanumeric
                 let new_token = self.scan_alphanumeric_sequence();
                 tokens.push(new_token);
-                dbg!("{new_token:?}");
 
                 let check_curr = self.peek();
                 if check_curr.is_some() && (check_curr.unwrap() == ',' 
-                                            || check_curr.unwrap() == ')'){
+                                            || check_curr.unwrap() == ')'
+                                            || check_curr.unwrap() == ';'){
                     // if we have a comma after an alphanumeric, we want to
                     // process it separately
                     continue;
@@ -125,13 +139,12 @@ impl<'s> Scanner<'s>{
                     _ => {},
                 }
         }
-        dbg!("{tokens:?}");
         tokens
     }
 
     fn scan_alphanumeric_sequence(&mut self) -> Token{
         let mut coll = String::new();
-
+        let mut open_string = false;
         loop{
             let curr = self.peek();
 
@@ -140,8 +153,18 @@ impl<'s> Scanner<'s>{
                     curr_char == '\0' ||
                     curr_char == ',' || 
                     curr_char == '(' ||
-                    curr_char == ')' => {
+                    curr_char == ')' ||
+                    curr_char == ';' => {
                     break
+                },
+                Some(curr_char) if curr_char == '\'' => {
+                    if  open_string == false {
+                        open_string = true;
+                        self.advance();
+                        continue;
+                    } else {
+                        break;
+                    }
                 },
                 Some(curr_char) => coll.push(curr_char),
                 None => println!("invalid character detected"),
@@ -151,7 +174,12 @@ impl<'s> Scanner<'s>{
                 _ => { },
             }
         }
-        
+       
+        if open_string == true {
+            let literal_type = self.get_literal_type(&coll); 
+            return Token::new(TokenType::String, coll, literal_type);
+        }
+
         let token_type = self.get_tokentype(&coll).expect("invalid token");
         let literal_type = self.get_literal_type(&coll);
         
@@ -183,7 +211,7 @@ impl<'s> Scanner<'s>{
             "equals" => Some(TokenType::Equal),
             "(" => Some(TokenType::LeftParen),
             ")" => Some(TokenType::RightParen),
-            "\'" => Some(TokenType::Quote), //this needs to handle contents
+            "\'" => Some(TokenType::String), //this needs to handle contents
             "and" => Some(TokenType::And),
             "false" => Some(TokenType::False),
             "true" => Some(TokenType::True),
@@ -193,6 +221,8 @@ impl<'s> Scanner<'s>{
             _ => {
                if self.is_numeric(keyword) {
                     Some(TokenType::Number) //will need to expand for float
+               } else if keyword.contains('\'') { 
+                    Some(TokenType::String) 
                } else if self.is_alphanumeric(keyword){
                     Some(TokenType::Identifier) 
                } else {
@@ -202,16 +232,6 @@ impl<'s> Scanner<'s>{
         }
     }
 
-     /*
-    fn check_boolean(&self, literal: &str) -> bool {
-       match literal{
-            "equals" | "greater" | "less" | 
-                "notequal" | "and" | "or" | "not" => true,
-                _ => false,
-       };
-      false 
-    }
-*/
     fn get_literal_type(&self, literal: &str) -> Option<Literal>{
         
         if self.is_numeric(literal) {

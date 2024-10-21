@@ -1,5 +1,5 @@
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum TokenType {
     // keywords 
     Select, All, From, Where, Create, TableName, 
