@@ -1,14 +1,14 @@
 use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
-
+use colored::*;
 
 pub mod interpreter;
 
 fn main() {
     println!("Starting RUSTQLITE...");
     thread::sleep(Duration::from_secs(1)); 
-    
+    print_title();    
     loop{
         
         print!("RQLITE > ");
@@ -40,3 +40,20 @@ fn main() {
 
 
 }
+
+fn print_title(){
+    println!("{}", r"______          _   _____ _     _ _            /\ ".red());
+    println!("{}",r"| ___ \        | | |  _  | |   (_) |          ( /   @ @    ()".red());
+    println!("{}",r"| |_/ /   _ ___| |_| | | | |    _| |_ ___      \  __| |__  /".red());
+    println!("{}", r"|    / | | / __| __| | | | |   | | __/ _ \      -/   V   \-".red());
+    println!("{}",r"| |\ \ |_| \__ \ |_\ \/' / |___| | ||  __/     /-|       |-\".red());
+    println!("{}",r"\_| \_\__,_|___/\__|\_/\_\_____/_|\__\___|    / /-\     /-\ \".red());
+    println!("{}",r"                                              / /-\     /-\ \".red());
+    println!("{}",r"                                               / /-`---'-\ \".red());
+    println!("{}",r"                                                /         \".red());
+}
+
+
+
+
+
