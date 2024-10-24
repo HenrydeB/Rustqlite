@@ -1,12 +1,23 @@
 use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
+use std::process;
 use colored::*;
+use std::fs;
 
+pub mod vm;
 pub mod interpreter;
 
 fn main() {
     println!("Starting RUSTQLITE...");
+    let data_dir: &str = "/data";
+    
+    if let Err(_) = fs::create_dir_all(data_dir){
+        println!("unable to create database, check program config");
+        thread::sleep(Duration::from_secs(2)); 
+        process::exit(0);
+    }
+
     thread::sleep(Duration::from_secs(1)); 
     print_title();    
     loop{
@@ -26,7 +37,17 @@ fn main() {
             println!("exiting...");
             break;
         }
-        interpreter::interpret(&trimmed);
+
+        //this may not be the right way to go about this
+        let statement = interpreter::interpret(&trimmed);
+
+        match statement {
+            Ok(stmt) => {
+                vm::process(stmt.clone());
+                println!("{:?}", stmt)
+            },
+            Err(err) => println!("{}", err),
+        }
 
         //process commands
 /*        println!("===========================================================");

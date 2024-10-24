@@ -23,6 +23,8 @@ pub enum TokenType {
     EOF
 }
 
+#[derive(serde::Deserialize)]
+#[derive(serde::Serialize)]
 #[derive(Debug, Clone)]
 pub enum Literal{
     Number(i64),

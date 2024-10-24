@@ -7,6 +7,10 @@ such as SELECT, INSERT, UPDATE, and DELETE.
 > This project is a work in progress, a further iteration will be done to optimize and condense the codebase.
 >
 
+## Database Structure
+This project only allows for a single database, which is found in the database.rdb file that is created
+in the root directory of this program when you first run it (this will later be moved to another location). 
+
 ## Running the Program
 In it's current state, this program requires you to have Rust and Cargo installed on your machine. 
 After cloning this repository, running `cargo run` in your terminal will open the basic RustQLite 

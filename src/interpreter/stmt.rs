@@ -4,7 +4,7 @@ use crate::interpreter::token::{Literal};
 //figure something out
 //
 //commenting out lifetime in case we want to swap out the Strings for &str
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt/*<'s>*/{
    Select{
         table_name: String,
