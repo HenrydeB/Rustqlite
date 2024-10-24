@@ -16,6 +16,9 @@ pub struct VirtualMachine {
 
 //need to find a way to persist file connection as soon as we connect
 //or is that best practice? Is it a big deal?
+//
+//it also might be better to just print from here and have a formatting module
+//that handles this
 impl VirtualMachine {
     pub fn new(statement: Stmt) -> Self{
         Self{
@@ -28,33 +31,88 @@ impl VirtualMachine {
     // and rows. Or even a Vec<Vec<String>> sort of situation where 
     // we just stuff a bunch of vectors with whatever data and print it 
     // that way
-    pub fn run(&mut self) -> Result<(), String>{ //at some point change to Table, &str
+    pub fn run(&mut self) -> Result<Table, String>{ //at some point change to Table, &str
        //identify which command and run with it 
         match &self.command {
             Stmt::Select{table_name, target_columns, where_conditions} => 
                 self.select_table(table_name, target_columns, where_conditions),
-            Stmt::Insert{..} => Ok({}),
-            Stmt::Create{..} => Ok({}),
-            Stmt::Drop{..} => Ok({}),
-            Stmt::Delete{..} => Ok({}),
-            Stmt::Update{..} => Ok({}),
+            _ => todo!()
+            //Stmt::Insert{..} => Ok({}),
+            //Stmt::Create{..} => Ok({}),
+            //Stmt::Drop{..} => Ok({}),
+            //Stmt::Delete{..} => Ok({}),
+            //Stmt::Update{..} => Ok({}),
         }
     }
 
 
+/*
+#[derive(serde::Deserialize)]
+#[derive(serde::Serialize)]
+pub struct Table {
+   pub name: String,
+   pub columns: Vec<Column>,
+   pub rows: BTreeMap<i32, Row>, //isize?
+}
+
+#[derive(serde::Deserialize)]
+#[derive(serde::Serialize)]
+pub struct Row {
+                // col, content -> so when we filter we can look up by col
+    values: HashMap<String,Literal>, //we can literally just copy over this from the Stmt
+}
+*/
+    //need to verify the literals are comparing themselve correctly
     fn select_table(&self, 
                     table_name: &str, 
-                    _target_columns: &Vec<String>,
-                    _where_conditions: &Option<(Vec<String>, Vec<Literal>)>
-                    ) -> Result<(), String>{
-    
-        let _target_table: Table = match self.read_file(&table_name){
+                    target_columns: &Vec<String>,
+                    where_conditions: &Option<(Vec<String>, Vec<Literal>)>
+                    ) -> Result<Table, String>{
+   
+        //this should be fine because we are only altering it in memory
+        let mut target_table: Table = match self.read_file(&table_name){
             Ok(table) => table,
             Err(err) => return Err(err),
         };
 
-        //from the table, filter columns list by target columns
-        //based on that list, we can filter by the where conditions
+        let is_all = match target_columns.get(0){
+           Some(val) => val == "*",
+           _ => false,
+        };
+
+        for (id, row) in &mut target_table.rows {
+            //need to extract the data structure first
+            if !is_all{
+                row.values.retain(|key, _| target_columns.contains(key));
+            }               
+
+            if let Some((columns, values)) = where_conditions{
+               for (col, val) in columns.iter().zip(values.iter()){
+                    if col == "id" {
+                        match val {
+                            Literal::Number(val) => {
+                                if *val != *id as i64{
+                                    continue;
+                                }
+                            },
+                            _ => {},
+                        };
+                    }
+                    row.values.retain(|key, stored_val|{
+                        if key == col{
+                            if stored_val == val{
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+               } 
+            }
+        }
+
+        //if target columns is just '*', then we use all the columns in each
+        //row. Otherwise we can loop through the target columns and 'get' each
+        //idk would it be better to just stringify them at this point?
         //
         //if a column from the where conditions isn't in our set
         //return an error
@@ -65,7 +123,7 @@ impl VirtualMachine {
         //
         //consider extracting the where logic into it's own function
         
-        Ok(())
+        Ok(target_table)
     }
 
     /*
@@ -125,5 +183,7 @@ impl VirtualMachine {
         file.write_all(&encode).map_err(|err| err.to_string())?; //add error handling
         Ok(())
     }
+
+    
     
 }

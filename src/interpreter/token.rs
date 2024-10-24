@@ -25,7 +25,7 @@ pub enum TokenType {
 
 #[derive(serde::Deserialize)]
 #[derive(serde::Serialize)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal{
     Number(i64),
     String(String),
@@ -33,6 +33,8 @@ pub enum Literal{
     Null, //this one may be difficult to implement
     None
 }
+
+
 
 #[derive(Debug, Clone)]
 pub struct Token {
