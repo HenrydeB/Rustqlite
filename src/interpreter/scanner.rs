@@ -62,7 +62,7 @@ impl<'s> Scanner<'s>{
         if key == "true" || key == "false"{
             return false;
         }
-        key.chars().all(|c| c.is_alphanumeric())
+        key.trim().chars().filter(|w| !w.is_whitespace()).all(|c| c.is_alphanumeric())
     }
 
      fn is_numeric(&self, key: &str) -> bool{
@@ -119,7 +119,7 @@ impl<'s> Scanner<'s>{
             }else {
                 let input = String::from(curr.expect("invalid sequence"));
 
-                let token_type = self.get_tokentype(&input)
+                let token_type = self.get_tokentype(&input, false)
                                         .expect("invalid token");
                 let literal_type = self.get_literal_type(&input);
                 
@@ -140,11 +140,12 @@ impl<'s> Scanner<'s>{
     fn scan_alphanumeric_sequence(&mut self) -> Token{
         let mut coll = String::new();
         let mut open_string = false;
+        let mut is_string = false;
         loop{
             let curr = self.peek();
 
             match curr{
-                Some(curr_char) if curr_char.is_whitespace() || 
+                Some(curr_char) if curr_char.is_whitespace() && open_string == false || 
                     curr_char == '\0' ||
                     curr_char == ',' || 
                     curr_char == '(' ||
@@ -155,9 +156,11 @@ impl<'s> Scanner<'s>{
                 Some(curr_char) if curr_char == '\'' => {
                     if  open_string == false {
                         open_string = true;
+                        is_string = true;
                         self.advance();
                         continue;
                     } else {
+                        open_string = false;
                         break;
                     }
                 },
@@ -175,7 +178,7 @@ impl<'s> Scanner<'s>{
             return Token::new(TokenType::String, coll, literal_type);
         }
 
-        let token_type = self.get_tokentype(&coll).expect("invalid token");
+        let token_type = self.get_tokentype(&coll, is_string).expect("invalid token");
         let literal_type = self.get_literal_type(&coll);
         
         let new_token = Token::new(token_type, coll, literal_type);
@@ -184,7 +187,7 @@ impl<'s> Scanner<'s>{
     
      /// Pretty self explanatory, we pass in a constructed
      /// part of the SQL command so we can identify the type
-     fn get_tokentype(&self, keyword: &str) -> Option<TokenType>{
+     fn get_tokentype(&self, keyword: &str, is_string: bool) -> Option<TokenType>{
         match keyword{
             "select" => Some(TokenType::Select),
             "*" => Some(TokenType::All),
@@ -216,7 +219,7 @@ impl<'s> Scanner<'s>{
             _ => {
                if self.is_numeric(keyword) {
                     Some(TokenType::Number) //will need to expand for float
-               } else if keyword.contains('\'') { 
+               } else if is_string { 
                     Some(TokenType::String) 
                } else if self.is_alphanumeric(keyword){
                     Some(TokenType::Identifier) 

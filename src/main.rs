@@ -27,7 +27,7 @@ fn main() {
         let mut cmd = String::new();
 
         if io::stdin().read_line(&mut cmd).is_err(){
-            println!("Failed to read input");
+            println!("{}", "Failed to read input".red());
             continue;
         }
         

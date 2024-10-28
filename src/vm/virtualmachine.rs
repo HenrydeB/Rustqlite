@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use serde::{Serialize, Deserialize};
+use colored::*;
 
 
 use crate::interpreter::stmt::{Stmt};
@@ -130,7 +131,7 @@ impl VirtualMachine {
 
         let table = Table::new(name.to_string(), columns);
         match Self::write_file(&table, true){
-            Ok(_) => println!("Table created successfully"),
+            Ok(_) => println!("{}","Table created successfully".green()),
             Err(err) => println!("{}", err),
         }
 
@@ -148,8 +149,18 @@ impl VirtualMachine {
             Err(err) => return Err(err),
         };
 
-        let id = if columns.len() <= 0 || !columns.contains(&"id".to_string()){
-            (target_table.rows.len() + 1) as i32 
+        let id = if columns.len() <= 0 || (columns.len() > 0 && !columns.contains(&"id".to_string())){
+
+            let has_potential_id = match values.get(0){
+                Some(val) => val,
+                _ => &Literal::None,
+            };
+
+            match has_potential_id {
+                Literal::Number(val) => *val as i32,
+                _ => (target_table.rows.len() + 1) as i32, 
+            }
+
         } else {
             //need to both extract the ID from the values list based on 
             //the index of the column name id, AND filter them out of the 
@@ -173,6 +184,8 @@ impl VirtualMachine {
             *id as i32 
         };
 
+        //probably should add type checking
+
         let row_vals = values.iter()
                              .filter(|val| **val != Literal::Number(id as i64))
                              .map(|lit| lit.clone())
@@ -192,7 +205,7 @@ impl VirtualMachine {
         target_table.rows.insert(id, row);
          
         match Self::write_file(&target_table, false){
-            Ok(_) => println!("Command committed successfully"),
+            Ok(_) => println!("{}","Command committed successfully".green()),
             Err(err) => println!("{}", err),
         }
 
