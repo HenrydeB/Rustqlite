@@ -34,6 +34,15 @@ pub enum Literal{
     None
 }
 
+impl PartialEq<i64> for Literal{
+    fn eq(&self, other: &i64) -> bool{
+        match self{
+            Literal::Number(val) => val == other,
+            _ => false,
+        }
+    }
+}
+
 
 
 #[derive(Debug, Clone)]

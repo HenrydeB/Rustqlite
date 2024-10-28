@@ -91,10 +91,6 @@ impl<'s> Scanner<'s>{
                 break;
             }
 
-            if curr.unwrap() == '\''{
-                println!("here");
-            }
-
             if curr.unwrap() == ';'{
                 let token_type = TokenType::SemiColon;
                 let input = String::from(curr.unwrap());

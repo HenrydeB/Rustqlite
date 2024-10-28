@@ -53,6 +53,7 @@ dependencies = [
  "colored",
  "serde",
  "serde_derive",
+ "text-tables",
 ]
 
 [[package]]
@@ -85,6 +86,12 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "text-tables"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5dc41925991e82af3c3e21e25a9aad92e72930af57fbcc4b07867a18d1cd0459"
 
 [[package]]
 name = "unicode-ident"
