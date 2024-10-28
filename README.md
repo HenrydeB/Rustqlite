@@ -51,11 +51,15 @@ INSERT INTO <table_name> (col1, col2, col3) VALUES (val1, val2, val3);
 INSERT INTO <table_name> VALUES (val1, val2, val3);
 ```
 
+Note that if you don't define a value for the ID field when you are inserting, the ID will be generated for you.
+
 ### CREATE TABLE
 To create a new table, use the **CREATE TABLE** command, followed by a comma delimited list within parenthesis that defines the column name and the type.
 ```SQL
 CREATE TABLE <table_name> (col1 datatype, col2 datatype);
 ```
+Note that an ID field MUST be the first field that gets added, otherwise and ID column will be added for you. Subsequent ID columns must be IDs that reference a separate table.
+
 ### DROP TABLE
 If you would like to drop a table you have already created, then the command is simply
 ```SQL
