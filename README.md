@@ -75,3 +75,10 @@ An update statement will update a field or a set of fields in a row of a table. 
 ```SQL
 UPDATE <table_name> SET col1 = <desired_val> WHERE col2 = <curr_val>;
 ```
+## Interacting with the VM
+
+When executing a command, the Rustqlite virtual machine will provide feedback to you to help you understand if a command was successful or not. Whether it is a SELECT statement, which will return the target table or inform you that the table does not exist, or any other "WRITE" actions to a database, the  virtual machine will respond with a success message or not.
+
+## Data structure
+
+This project has a 'data' folder in the root of the project. Here, we will store the encoded tables (which are encoded and decoded through the create serde) in their individual files. In futuer iterations, all tables will be condensed into one file, but for now if you want to pull down this code, ensure you have your created tables within the data fold in your `.gitignore` file.
