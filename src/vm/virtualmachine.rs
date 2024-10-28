@@ -125,8 +125,17 @@ impl VirtualMachine {
 
         let mut columns: Vec<Column> = Vec::new();
 
+        let mut idx = 0;
+
         for (col_name, datatype) in data{
+            if idx == 0 && col_name != "id"{
+                //first column should be ID, otherwise we make it ID
+                //other ID fields should be explicitly the id for a FK relationship
+                columns.push(Column::new(String::from("id"), String::from("int")));
+            } 
             columns.push(Column::new(col_name.to_string(), datatype.to_string()));
+            
+            idx +=1;
         }
 
         let table = Table::new(name.to_string(), columns);
