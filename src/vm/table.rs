@@ -17,6 +17,14 @@ impl Column {
             datatype,
         }
     }
+
+    pub fn get_name(&self) -> &str{
+        &self.name
+    }
+
+    pub fn get_type(&self) -> &str{
+        &self.datatype
+    }
 }
 
 #[derive(Clone)]
@@ -46,15 +54,19 @@ impl Row{
 pub struct Table {
    pub name: String,
    pub columns: Vec<Column>,
-   pub rows: BTreeMap<i32, Row>, //isize?
+   pub rows: BTreeMap<i64, Row>, //isize?
+   pub schema: HashMap<String, String>,
 }
 
 impl Table {
-    pub fn new(name: String, columns:Vec<Column>) -> Self{
+    pub fn new(name: String, columns:Vec<Column>, schema:HashMap<String, String>) -> Self{
         Table {
             name,
             columns,
             rows: BTreeMap::new(),
+            schema,
         }
     }
+
+
 }

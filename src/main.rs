@@ -10,13 +10,6 @@ pub mod interpreter;
 
 fn main() {
     println!("Starting RUSTQLITE...");
-    //let data_dir: &str = "/data";
-  /* 
-    if let Err(err) = fs::create_dir_all(data_dir){
-        println!("unable to create database, check program config: {}", err);
-        thread::sleep(Duration::from_secs(2)); 
-        process::exit(0);
-    }*/
 
     thread::sleep(Duration::from_secs(1)); 
     print_title();    
@@ -43,22 +36,14 @@ fn main() {
 
         match statement {
             Ok(stmt) => {
-                vm::process(stmt.clone());
+                match vm::process(stmt.clone()){
+                    Ok(msg) => println!("{}", msg),
+                    Err(err) => println!("{}", err),
+                }
             },
             Err(err) => println!("{}", err),
         }
-
-        //process commands
-/*        println!("===========================================================");
-        println!("===CName===CName===CName===CName===CName===CName===CName===");
-        println!("|  CName | CName | CName | CName | CName | CName | CName  |");
-        println!("|  CName | CName | CName | CName | CName | CName | CName  |");
-        println!("|  CName | CName | CName | CName | CName | CName | CName  |");
-        println!("|  CName | CName | CName | CName | CName | CName | CName  |");
-        println!("===========================================================");*/
     }
-
-
 }
 
 fn print_title(){
