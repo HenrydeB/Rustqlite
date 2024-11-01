@@ -24,7 +24,6 @@ impl VirtualMachine {
     }
 
     pub fn run(&mut self) -> Result<ColoredString, ColoredString>{ //at some point change to Table, &str
-       //identify which command and run with it 
         let result = match &self.command {
             Stmt::Select{table_name, target_columns, where_conditions} => 
                 self.select_table(table_name, target_columns, where_conditions),
@@ -32,7 +31,8 @@ impl VirtualMachine {
                 self.create_table(table_name, columns_and_data),
             Stmt::Insert{table_name, target_columns, target_values} => 
                 self.insert_into_table(table_name, target_columns, target_values),
-            Stmt::Drop{table_name} => self.drop_table(table_name),
+            Stmt::Drop{table_name} => 
+                self.drop_table(table_name),
             Stmt::Delete{table_name, lhs, rhs} => 
                 self.delete_from_table(table_name, lhs, rhs),
             Stmt::Update{table_name, where_col, where_val, target_columns, target_values} => 
@@ -317,7 +317,7 @@ impl VirtualMachine {
             },
             Err(err) => return Err(err.red()),
         }
-       Ok("Rows have been successfully removed from table".green()) 
+       Ok("Row(s) have been successfully removed from table".green()) 
     }
 
 

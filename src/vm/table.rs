@@ -5,7 +5,7 @@ use crate::interpreter::token::{Literal};
 
 #[derive(serde::Deserialize)]
 #[derive(serde::Serialize)]
-pub struct Column{ // we can likely change the internal datatypes with lifetimes
+pub struct Column{ 
     pub name: String,
     pub datatype: String,
 }
@@ -31,9 +31,7 @@ impl Column {
 #[derive(serde::Deserialize)]
 #[derive(serde::Serialize)]
 pub struct Row {
-                // col, content -> so when we filter we can look up by col
-   pub values: HashMap<String,Literal>, //we can literally just copy over this from the Stmt
-}
+   pub values: HashMap<String,Literal>, }
 
 impl Row{
     pub fn new(columns: Vec<String>, values: Vec<Literal>) -> Self{
@@ -54,7 +52,7 @@ impl Row{
 pub struct Table {
    pub name: String,
    pub columns: Vec<Column>,
-   pub rows: BTreeMap<i64, Row>, //isize?
+   pub rows: BTreeMap<i64, Row>, 
    pub schema: HashMap<String, String>,
 }
 
