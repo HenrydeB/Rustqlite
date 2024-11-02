@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use crate::interpreter::token::{Literal};
 
+#[derive(Debug, Clone)]
 #[derive(serde::Deserialize)]
 #[derive(serde::Serialize)]
 pub struct Column{ 
@@ -27,7 +28,7 @@ impl Column {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[derive(serde::Deserialize)]
 #[derive(serde::Serialize)]
 pub struct Row {
@@ -47,6 +48,7 @@ impl Row{
 }
 
 
+#[derive(Debug, Clone)]
 #[derive(serde::Deserialize)]
 #[derive(serde::Serialize)]
 pub struct Table {
