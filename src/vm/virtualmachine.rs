@@ -1,16 +1,21 @@
 extern crate text_tables;
 
 use std::str;
-use std::collections::HashMap;
-use std::collections::BTreeMap;
-use std::fs;
-use std::fs::File;
+use std::collections::{HashMap, BTreeMap};
+use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use colored::*;
 
 use crate::interpreter::stmt::{Stmt};
 use crate::interpreter::token::{Literal};
 use crate::vm::table::{Table, Row, Column};
+    
+#[derive(serde::Deserialize)]
+#[derive(serde::Serialize)]
+#[derive(Debug, Clone)]
+pub struct Database {
+    pub tables: BTreeMap<String, Table>,
+}
 
 pub struct VirtualMachine {
     command: Stmt,
@@ -38,7 +43,6 @@ impl VirtualMachine {
             Stmt::Update{table_name, where_col, where_val, target_columns, target_values} => 
                 self.update_table(table_name, where_col, where_val, target_columns, target_values),
         };
-
         result
     }
 
@@ -181,7 +185,7 @@ impl VirtualMachine {
         }
 
         let table = Table::new(name.to_string(), columns, schema);
-        match self.write_file(&table, true){
+        match self.write_file(table){
             Ok(_) => {},
             Err(err) => return Err(err.red()),
         }
@@ -262,7 +266,7 @@ impl VirtualMachine {
 
         target_table.rows.insert(id as i64, row);
          
-        match self.write_file(&target_table, false){
+        match self.write_file(target_table){
             Ok(_) => {},
             Err(err) => return Err(err.red()),
         }
@@ -274,16 +278,41 @@ impl VirtualMachine {
    ///more like the delete_from_table() format to follow
    ///
     fn drop_table(&self, name: &String) -> Result<ColoredString, ColoredString>{
-        let table_name = format!("./data/{}.rdb", name);
-       match fs::remove_file(table_name) {
-           Ok(_) => {
-               Ok("Command committed successfully".green())
-           },
-           Err(err) =>{ 
-               println!("{}", err);
-               Err("Failed to remove file".red())
-           },
-       }
+     
+        let get_file = OpenOptions::new()
+                                    .read(true)
+                                    .write(true)
+                                    .create(true)
+                                    .open("data/database.rdb");
+
+        let mut file = match get_file{
+            Ok(db) => db,
+            Err(err) => return Err(err.to_string().red()),
+        };
+
+        let mut buff = Vec::new();
+        file.read_to_end(&mut buff).map_err(|err| err.to_string().red())?;
+        let mut memory_db: Database = match bincode::deserialize(&buff){
+            Ok(exists) => exists,
+            Err(_) => {
+                println!("{}", "No database found.. creating new DB instance".red());
+                Database{
+                    tables : BTreeMap::new(),
+                }
+            },
+        };
+
+        let res = match memory_db.tables.remove(name){
+            Some(_db) => Ok("Table dropped successfully".green()),
+            None => Err("Unable to remove table".red()),
+        };
+
+        
+        let encode: Vec<u8> = bincode::serialize(&memory_db).unwrap();
+        let mut file = File::create("data/database.rdb").map_err(|err| err.to_string().red())?; //same deal with file path here
+        file.write_all(&encode).map_err(|err| err.to_string().red())?; 
+       
+       res 
     }
 
 
@@ -309,7 +338,7 @@ impl VirtualMachine {
             }
        }
 
-        match self.write_file(&target_table, false){
+        match self.write_file(target_table){
             Ok(_) => {
                 if success != true{
                     return Err("Unable to remove row(s) from table".red());
@@ -361,7 +390,7 @@ impl VirtualMachine {
             target_table.rows.insert(*id, row_replacement);
         }
 
-        match self.write_file(&target_table, false){
+        match self.write_file(target_table){
             Ok(_) => {},
             Err(err) => return Err(err.red()),
         } 
@@ -468,32 +497,67 @@ impl VirtualMachine {
     //for now each table will have it's own file
     //then we will figure out how to do the actual data model
     fn read_file(&self, tablename: &str) -> Result<Table, ColoredString> { 
-       let file_path = format!("data/{}.rdb", tablename);
+       
+        let get_file = OpenOptions::new()
+                                    .read(true)
+                                    .write(true)
+                                    .create(true)
+                                    .open("data/database.rdb");
 
-       let mut file = File::open(&file_path).map_err(|err| err.to_string().red())?; //each table gets their own file for now, how can we structure
-                                    //this?
-       let mut buff = Vec::new();
-       file.read_to_end(&mut buff).map_err(|err| err.to_string().red())?;
-       let memory_table: Table = bincode::deserialize(&buff).unwrap();
-       Ok(memory_table)
+        let mut file = match get_file{
+            Ok(db) => db,
+            Err(err) => return Err(err.to_string().red()),
+        };
+
+        let mut buff = Vec::new();
+        file.read_to_end(&mut buff).map_err(|err| err.to_string().red())?;
+        let memory_db: Database = match bincode::deserialize(&buff){
+            Ok(exists) => exists,
+            Err(_) => {
+                println!("{}", "No database found.. creating new DB instance".red());
+                Database{
+                    tables : BTreeMap::new(),
+                }
+            },
+        };
+
+        match memory_db.tables.get(tablename){
+            Some(table) => Ok(table.clone()),
+            None => return Err("Target table not found".red()),
+        }
     }
 
     //simply writes it back
-    #[allow(dead_code)]
-    fn write_file(&self, in_table: &Table, is_create: bool) -> Result<(), ColoredString>{
-        let file_path = format!("data/{}.rdb", &in_table.name);
+    fn write_file(&self, in_table: Table) -> Result<(), ColoredString>{
+        let get_file = OpenOptions::new()
+                                    .read(true)
+                                    .write(true)
+                                    .create(true)
+                                    .open("data/database.rdb");
+
+        let mut file = match get_file{
+            Ok(db) => db,
+            Err(err) => return Err(err.to_string().red()),
+        };
+
+        let mut buff = Vec::new();
+        file.read_to_end(&mut buff).map_err(|err| err.to_string().red())?;
+        let mut memory_db: Database = match bincode::deserialize(&buff){
+            Ok(exists) => exists,
+            Err(_) => {
+                println!("{}", "No database found.. creating new DB instance".red());
+                Database{
+                    tables : BTreeMap::new(),
+                }
+            },
+        };
+
+        memory_db.tables.insert(in_table.name.clone(), in_table);
+
+        let encode: Vec<u8> = bincode::serialize(&memory_db).unwrap();
+        let mut file = File::create("data/database.rdb").map_err(|err| err.to_string().red())?; //same deal with file path here
+        file.write_all(&encode).map_err(|err| err.to_string().red())?; 
         
-        if is_create && std::path::Path::new(&file_path).exists(){
-            return Err("cannot create a table with an existing table name".red());
-        }
-
-        if !is_create && !std::path::Path::new(&file_path).exists(){
-            return Err("cannot perform operation, table does not exist".red());
-        }
-
-        let encode: Vec<u8> = bincode::serialize(in_table).unwrap();
-        let mut file = File::create(file_path).map_err(|err| err.to_string().red())?; //same deal with file path here
-        file.write_all(&encode).map_err(|err| err.to_string().red())?; //add error handling
         Ok(())
     }
 }

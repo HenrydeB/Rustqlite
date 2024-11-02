@@ -1,9 +1,7 @@
 use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
-//use std::process;
 use colored::*;
-//use std::fs;
 
 pub mod vm;
 pub mod interpreter;
@@ -29,6 +27,13 @@ fn main() {
         if trimmed == "exit"{
             println!("exiting...");
             break;
+        }
+
+        if trimmed == "schema"{
+            if let Err(err) = vm::print_schema(){
+                println!("{}", err);
+            }
+            continue;
         }
 
         //this may not be the right way to go about this
