@@ -204,8 +204,6 @@ impl VirtualMachine {
             Err(err) => return Err(err),
         };
 
-
-
         let id = if columns.len() <= 0 || (columns.len() > 0 && !columns.contains(&"id".to_string())){
 
             let has_potential_id = match values.get(0){
@@ -241,27 +239,59 @@ impl VirtualMachine {
             *id as i32 
         };
 
-        //probably should add type checking
+        self.validate_schema(&columns, &values, &target_table.schema)?;
 
         let row_vals = values.iter()
-                             .filter(|val| **val != Literal::Number(id as i64))
-                             .map(|lit| lit.clone())
-                             .collect();
+                         .filter(|val| **val != Literal::Number(id as i64))
+                         .map(|lit| lit.clone())
+                         .collect();
+
+        let col_names = target_table.columns.iter()
+                                .filter(|id| id.name != "id")
+                                .map(|s| s.name.clone())
+                                .collect();
 
         let row = if columns.len() <= 0 {
-            let col_names = target_table.columns.iter()
-                                    .filter(|id| id.name != "id")
-                                    .map(|s| s.name.clone())
-                                    .collect();
-
-            
-            self.validate_schema(&col_names, &row_vals, &target_table.schema)?;
-            
-
             Row::new(col_names, row_vals)
         } else {
-            self.validate_schema(&columns, &row_vals, &target_table.schema)?;
-            Row::new(columns.to_vec(), row_vals)
+
+            //create a new row vector
+            //loop through the table's actual columns
+            //clone  the ones we already have values for
+            //skip ID because I think we figured that out
+            //for the ones that we don't have an answer for, set
+            //with default value -> int is 0, bool is false, string is empty string
+            //
+
+            let mut filled_rows: Vec<Literal> = Vec::new();
+
+            for col in &target_table.columns{
+               
+                if &col.name == "id"{
+                    continue;
+               }
+
+               if columns.contains(&col.name){
+                    let idx = match columns.iter().position(|x| x == &col.name){
+                        Some(i) => i,
+                        None => return Err("Invalid column sequence".red()),
+                    }; 
+                    filled_rows.push(values[idx].clone());
+               } else {
+                   //adds default value in place of empty space
+                    let filler_val = match &*col.datatype {
+                        "varchar" => Literal::String(String::from("")),
+                        "int" => Literal::Number(0),
+                        "bit" => Literal::Boolean(false),
+                        _ => Literal::String(String::from("")),
+                    };
+                    
+                    filled_rows.push(filler_val);
+
+               } 
+            }
+
+            Row::new(col_names, filled_rows)
         };
 
         target_table.rows.insert(id as i64, row);
@@ -404,7 +434,6 @@ impl VirtualMachine {
                        schema: &HashMap<String, String>) -> Result<(), ColoredString> {
 
         for (name, val) in col_names.iter().zip(values){
-           
             let col_type = match schema.get(&String::from(name)){
                 Some(inner_type) => inner_type, 
                 None => {

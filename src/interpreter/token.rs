@@ -25,7 +25,7 @@ pub enum TokenType {
 
 #[derive(serde::Deserialize)]
 #[derive(serde::Serialize)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)] //try to implement Copy sometime
 pub enum Literal{
     Number(i64),
     String(String),
