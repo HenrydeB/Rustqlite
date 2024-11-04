@@ -1,15 +1,12 @@
 # Welcome to RustQLite
 This is a lightweight database management system inspired by the structure of SQLite.
-This project includes a simple SQL interpreter that is able to process a few basic commands,
-such as SELECT, INSERT, UPDATE, and DELETE. 
-
-> [!NOTE]
-> This project is a work in progress, a further iteration will be done to optimize and condense the codebase.
->
+This project includes a simple SQL interpreter that is able to process a few basic commands: 
+CREATE, SELECT, INSERT, UPDATE, DROP and DELETE. 
 
 ## Database Structure
-This project only allows for a single database, which is found in the database.rdb file that is created
-in the root directory of this program when you first run it (this will later be moved to another location). 
+This project only allows for a single database, which is found in `data/database.rdb` for now. This single database acts similarly to SQLite where all tables are found on one file. This database is organized as a BTreeMap, where the unique identifier of the table is the table name, and the table itself is stored as the value.
+
+To view your current tables in your database, use the `schema` command.
 
 ## Running the Program
 In it's current state, this program requires you to have Rust and Cargo installed on your machine. 
@@ -24,7 +21,7 @@ code is.
 > ALL commands must end with a `;` terminator, otherwise this will be identified as an invalid statement.
 > ALL commands are confied to a single line as of 10/21/2024.
 >
-> The SQL specific command keywords (SELECT, INSERT INTO, etc.), 
+> 
 
 ### SELECT
 A select statement can request all columns from the target table using an aserisk `*` or a collection of desired columns from the table by listing them:
@@ -52,6 +49,7 @@ INSERT INTO <table_name> VALUES (val1, val2, val3);
 ```
 
 Note that if you don't define a value for the ID field when you are inserting, the ID will be generated for you.
+You may also wish to not define a value for a particular column. You may do this if you would like, however no datatypes in this project are nullable, so the missed fields will be filled with their default values (numbers will be 0, varchar will be an empty string, and a bit will be false by default);
 
 ### CREATE TABLE
 To create a new table, use the **CREATE TABLE** command, followed by a comma delimited list within parenthesis that defines the column name and the type.
@@ -59,6 +57,9 @@ To create a new table, use the **CREATE TABLE** command, followed by a comma del
 CREATE TABLE <table_name> (col1 datatype, col2 datatype);
 ```
 Note that an ID field MUST be the first field that gets added, otherwise and ID column will be added for you. Subsequent ID columns must be IDs that reference a separate table.
+
+#### DataTypes
+Possible data types you can pass in are `int`, `varchar`, and `bit`. Here, `int` can take any valid non-floating point number, `varchar` accepts a string of characters surrounded by `' '` single quotes, and a bit will accept the values `true` or `false`. You may wonder, why should `bit` accept written true or false instead of `1` or `0`? The `bit` datatype was written as such to mimic SQL server's syntax, though the implementation on the back end is used as true or false, so in an effort to make it more clear to everyone involved, we allow it to accept `true` or `false`.
 
 ### DROP TABLE
 If you would like to drop a table you have already created, then the command is simply
@@ -79,10 +80,10 @@ An update statement will update a field or a set of fields in a row of a table. 
 ```SQL
 UPDATE <table_name> SET col1 = <desired_val> WHERE col2 = <curr_val>;
 ```
+### Other Commands
+* `schema` will print out the available table names you have created
+* `exit` will exit the program
+
 ## Interacting with the VM
 
 When executing a command, the Rustqlite virtual machine will provide feedback to you to help you understand if a command was successful or not. Whether it is a SELECT statement, which will return the target table or inform you that the table does not exist, or any other "WRITE" actions to a database, the  virtual machine will respond with a success message or not.
-
-## Data structure
-
-This project has a 'data' folder in the root of the project. Here, we will store the encoded tables (which are encoded and decoded through the create serde) in their individual files. In futuer iterations, all tables will be condensed into one file, but for now if you want to pull down this code, ensure you have your created tables within the data fold in your `.gitignore` file.
