@@ -254,15 +254,6 @@ impl VirtualMachine {
         let row = if columns.len() <= 0 {
             Row::new(col_names, row_vals)
         } else {
-
-            //create a new row vector
-            //loop through the table's actual columns
-            //clone  the ones we already have values for
-            //skip ID because I think we figured that out
-            //for the ones that we don't have an answer for, set
-            //with default value -> int is 0, bool is false, string is empty string
-            //
-
             let mut filled_rows: Vec<Literal> = Vec::new();
 
             for col in &target_table.columns{
@@ -284,23 +275,18 @@ impl VirtualMachine {
                         "int" => Literal::Number(0),
                         "bit" => Literal::Boolean(false),
                         _ => Literal::String(String::from("")),
-                    };
-                    
+                    }; 
                     filled_rows.push(filler_val);
-
                } 
             }
-
             Row::new(col_names, filled_rows)
         };
-
         target_table.rows.insert(id as i64, row);
-         
+
         match self.write_file(target_table){
             Ok(_) => {},
             Err(err) => return Err(err.red()),
         }
-
         Ok("Command committed successfully".green())
     }
 
