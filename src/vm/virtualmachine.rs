@@ -411,7 +411,7 @@ impl VirtualMachine {
             Err(err) => return Err(err.red()),
         } 
 
-        Ok("Rows have been successfully been updated".green())
+        Ok("Row(s) have been successfully been updated".green())
     }
     
     fn validate_schema(&self,
