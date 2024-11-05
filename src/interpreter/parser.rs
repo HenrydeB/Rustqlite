@@ -1,10 +1,6 @@
 use crate::interpreter::token::{TokenType, Token, Literal};
 use crate::interpreter::stmt::{Stmt};
 
-// TODO: 
-// - now that peek and advance are option types, we need to fix how we 
-// process getting the literals
-// - double check error handling
 
 #[derive(Debug)]
 pub struct Parser<'p>{
@@ -80,17 +76,17 @@ impl<'p> Parser<'p>{
      match from_token {
         Some(token) => {
              match token.token_type {
-                TokenType::From => {},
+                TokenType::From => self.advance(),
                 _ => return Err("invalid syntax, expected 'from'"),
              };
         },
         None => return Err("Invalid syntax, check statement"),
      }
-    self.advance();
+    
 
-    let table_result = self.get_table_name();
-
-    let table_name = match table_result {
+   let table_result = self.get_table_name();
+   //let table_name: &str = self.get_table_name()?;
+   let table_name = match table_result {
         Ok(name) => String::from(name),
         Err(_) => return Err("Invalid table name"),
     };
@@ -118,7 +114,7 @@ impl<'p> Parser<'p>{
         match expect_end_statement {
             Ok(_end) => {
                  return Ok(Stmt::Select{
-                            table_name: String::from(&table_name), 
+                            table_name: String::from(table_name), 
                             target_columns: columns_set,
                             where_conditions: Some((target_cols, has_vals)),
                             });
@@ -130,7 +126,7 @@ impl<'p> Parser<'p>{
     let expect_end_statement = self.expect_terminator();
     match expect_end_statement {
         Ok(_end) =>  Ok(Stmt::Select{
-                        table_name: String::from(&table_name), 
+                        table_name: String::from(table_name), 
                         target_columns: columns_set,
                         where_conditions: None,
                         }), 
@@ -152,7 +148,7 @@ impl<'p> Parser<'p>{
         let table_result = self.get_table_name();
         match table_result {
             Ok(table_name) => table_name,
-            Err(err) => return Err(err),  //modify for custom err || it comes from fn
+            Err(err) => return Err(err),  
         }
     };
     
@@ -179,8 +175,6 @@ impl<'p> Parser<'p>{
         },
         None => return Err("Invalid syntax, check statement"),
     }
-
-    // find Table Name
 
     let mut table_name = String::new(); 
     if let Ok(name) = self.get_table_name(){
@@ -424,7 +418,7 @@ impl<'p> Parser<'p>{
   }
 
   // Consider chaging this to return two &str instead
-  fn get_table_name(&self) -> Result<&str, &str>{
+  fn get_table_name(&self)  -> Result<&str, &str>{
     let table_token = self.peek();
     match table_token {
         Some(token) => {
