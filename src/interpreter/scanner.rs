@@ -1,17 +1,5 @@
 use crate::interpreter::token::{TokenType, Token, Literal};
 
-
-//may have to change the way we do the scanning, I don't think the inserts
-//would work properly
-//
-//maybe if we detect an insert, we still create the tokens but we have two
-//vectors, one for column name one for value
-//
-//will likely have to change the token syntax to fit what we need for 
-//our inserts and such
-//so we have a vector that contains our tokens
-//then as we collect the values we can insert the corresponding value
-//at the same index as said token we had been defining
 #[derive(Debug)]
 pub struct Scanner<'s>{
     cmd: &'s str,
@@ -26,13 +14,7 @@ impl<'s> Scanner<'s>{
         }
    }
 
-   /// the following are Scanner struct
-   /// helper methods
-   ///
-   /// fn advance() moves the position of the scanner
-   /// to the next position of the input
-
-    fn advance(&mut self) -> Option<char>{ 
+    fn advance(&mut self) -> Option<char>{
         if self.position < self.cmd.len() {
             let self_slice = &self.cmd[self.position..];
             
@@ -73,37 +55,42 @@ impl<'s> Scanner<'s>{
     /// identifying keys to be turned into tokens for the parser to 
     /// verify in the following step
 
-     pub fn scan(&mut self) -> Vec<Token>{
+     pub fn scan(&mut self) -> Result<Vec<Token>, &str>{
         let mut tokens: Vec<Token> = Vec::new();
         
         loop{
-            let curr = self.peek();
-
-            if curr.expect("invalid sequence").is_whitespace() { 
-                match self.advance(){
-                    Some('\0') | None => break,
-                    _ => continue,
-                }
-            }
+            let curr = match self.peek(){
+                Some(val) => {
+                    if val.is_whitespace() {
+                        match self.advance(){
+                            Some('\0') | None => break,
+                            _ => continue,        
+                        }
+                    }
+                    val
+                },
+                None => return Err("invalid sequence"),
+            };
             
             //for now only single line
-            if curr.unwrap() == '\0'{
+            if curr == '\0'{
                 break;
             }
 
-            if curr.unwrap() == ';'{
+            if curr == ';'{
                 let token_type = TokenType::SemiColon;
-                let input = String::from(curr.unwrap());
-                let new_token = Token::new(token_type, input, None);
+                let new_token = Token::new(token_type, String::from(curr), None);
                 tokens.push(new_token);
                 break;
             }
 
-            if curr.expect("invalid sequence").is_alphabetic() || 
-                curr.expect("invalid sequence").is_numeric() || 
-                curr.unwrap() == '\'' {
+            if curr.is_alphabetic() || curr.is_numeric() || curr == '\'' {
                 //handle alphanumeric
-                let new_token = self.scan_alphanumeric_sequence();
+                let new_token = match self.scan_alphanumeric_sequence(){
+                    Ok(token) => token,
+                    Err(_) => return Err("invalid sequence, expected alphanumeric sequence"),
+                };
+                
                 tokens.push(new_token);
 
                 let check_curr = self.peek();
@@ -117,27 +104,27 @@ impl<'s> Scanner<'s>{
                     break;
                 }
             }else {
-                let input = String::from(curr.expect("invalid sequence"));
+                let input = String::from(curr); 
 
-                let token_type = self.get_tokentype(&input, false)
-                                        .expect("invalid token");
+                let token_type = match self.get_tokentype(&input, false){
+                        Some(t_type) => t_type,
+                        None => return Err("invalid token"),
+                };
                 let literal_type = self.get_literal_type(&input);
                 
                 let new_token = Token::new(token_type, input, literal_type);
                 tokens.push(new_token); 
             }
             
-            let move_next = self.advance();
-
-            match move_next {
+            match self.advance() {
                     Some('\0') | None => break,
                     _ => {},
                 }
         }
-        tokens
+        Ok(tokens)
     }
 
-    fn scan_alphanumeric_sequence(&mut self) -> Token{
+    fn scan_alphanumeric_sequence(&mut self) -> Result<Token, &str>{
         let mut coll = String::new();
         let mut open_string = false;
         let mut is_string = false;
@@ -165,7 +152,7 @@ impl<'s> Scanner<'s>{
                     }
                 },
                 Some(curr_char) => coll.push(curr_char),
-                None => println!("invalid character detected"),
+                None => return Err("invalid character detected"),
             }
             match self.advance(){
                 Some('\0') | None => break,
@@ -175,14 +162,18 @@ impl<'s> Scanner<'s>{
        
         if open_string == true {
             let literal_type = self.get_literal_type(&coll); 
-            return Token::new(TokenType::String, coll, literal_type);
+            return Ok(Token::new(TokenType::String, coll, literal_type));
         }
 
-        let token_type = self.get_tokentype(&coll, is_string).expect("invalid token");
+        let token_type = match self.get_tokentype(&coll, is_string){
+            Some(t_type) => t_type,
+            None => return Err("invalid token"),
+        };
+
         let literal_type = self.get_literal_type(&coll);
         
         let new_token = Token::new(token_type, coll, literal_type);
-        new_token
+        Ok(new_token)
     }
     
      /// Pretty self explanatory, we pass in a constructed
@@ -245,7 +236,6 @@ impl<'s> Scanner<'s>{
         } else {
             None
         }
-
     } 
 }
 
