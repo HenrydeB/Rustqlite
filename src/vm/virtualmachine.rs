@@ -80,6 +80,8 @@ impl VirtualMachine {
             None => (Vec::new(), Vec::new()),
         };
 
+        self.validate_schema(&where_col, &where_vals, &target_table.schema)?;
+
         table_data.push(cols.clone());
 
         if where_col.len() > 0 && where_vals.len() > 0{
@@ -239,8 +241,6 @@ impl VirtualMachine {
             *id as i32 
         };
 
-        self.validate_schema(&columns, &values, &target_table.schema)?;
-
         let row_vals = values.iter()
                          .filter(|val| **val != Literal::Number(id as i64))
                          .map(|lit| lit.clone())
@@ -250,6 +250,12 @@ impl VirtualMachine {
                                 .filter(|id| id.name != "id")
                                 .map(|s| s.name.clone())
                                 .collect();
+
+        if columns.len() > 0 {
+            self.validate_schema(&columns, &values, &target_table.schema)?;
+        } else {
+            self.validate_schema(&col_names, &row_vals, &target_table.schema)?;
+        }  
 
         let row = if columns.len() <= 0 {
             Row::new(col_names, row_vals)
@@ -341,6 +347,9 @@ impl VirtualMachine {
             Ok(table) => table,
             Err(err) => return Err(err.red()),
         };
+
+        self.validate_schema(columns, values, &target_table.schema)?;
+
         let ids: Vec<i64> = match self.collect_target_ids(&target_table.rows, columns, values){
                 Ok(ids) => ids,
                 Err(err) => return Err(err.red()),
@@ -378,6 +387,8 @@ impl VirtualMachine {
             Ok(table) => table,
             Err(err) => return Err(err),
         };
+
+        self.validate_schema(where_cols, where_vals, &target_table.schema)?;
 
         let ids = match self.collect_target_ids(&target_table.rows, where_cols, where_vals){
             Ok(id) => id,
