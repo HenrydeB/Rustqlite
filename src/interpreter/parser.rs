@@ -200,9 +200,7 @@ impl<'p> Parser<'p>{
 
     if is_values {
        self.advance();
-       if self.parse_comma_list_literal(&mut val_list).is_err() {
-            return Err("Invalid syntax, check selected columns 210");
-        }
+       self.parse_comma_list_literal(&mut val_list)?;
        return Ok(Stmt::Insert{
             table_name, 
             target_columns: col_list, 
