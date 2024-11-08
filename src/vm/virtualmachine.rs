@@ -28,36 +28,32 @@ impl VirtualMachine {
         }
     }
 
-    pub fn run(&mut self) -> Result<ColoredString, ColoredString>{ //at some point change to Table, &str
+    pub fn run(&mut self) -> Result<String, String>{ //at some point change to Table, &str
         let result = match &self.command {
             Stmt::Select{table_name, target_columns, where_conditions} => 
-                self.select_table(table_name, target_columns, where_conditions),
+                VirtualMachine::select_table(table_name, target_columns, where_conditions),
             Stmt::Create{table_name, columns_and_data} => 
-                self.create_table(table_name, columns_and_data),
+                VirtualMachine::create_table(table_name, columns_and_data),
             Stmt::Insert{table_name, target_columns, target_values} => 
-                self.insert_into_table(table_name, target_columns, target_values),
+                VirtualMachine::insert_into_table(table_name, target_columns, target_values),
             Stmt::Drop{table_name} => 
-                self.drop_table(table_name),
+                VirtualMachine::drop_table(table_name),
             Stmt::Delete{table_name, lhs, rhs} => 
-                self.delete_from_table(table_name, lhs, rhs),
+                VirtualMachine::delete_from_table(table_name, lhs, rhs),
             Stmt::Update{table_name, where_col, where_val, target_columns, target_values} => 
-                self.update_table(table_name, where_col, where_val, target_columns, target_values),
+                VirtualMachine::update_table(table_name, where_col, where_val, target_columns, target_values),
         };
         result
     }
 
 
-    fn select_table(&self, 
+    fn select_table( 
                     table_name: &str, 
                     target_columns: &Vec<String>,
                     where_conditions: &Option<(Vec<String>, Vec<Literal>)>
-                    ) -> Result<ColoredString, ColoredString>{
+                    ) -> Result<String, String>{
    
-        //this should be fine because we are only altering it in memory
-        let target_table: Table = match self.read_file(&table_name){
-            Ok(table) => table,
-            Err(err) => return Err(err.red()),
-        };
+        let target_table: Table =  VirtualMachine::read_file(&table_name)?;
         
         let table_name = &target_table.name;
 
@@ -80,19 +76,17 @@ impl VirtualMachine {
             None => (Vec::new(), Vec::new()),
         };
 
-        self.validate_schema(&where_col, &where_vals, &target_table.schema)?;
+        VirtualMachine::validate_schema(&where_col, 
+                                        &where_vals, 
+                                        &target_table.schema)?;
 
         table_data.push(cols.clone());
 
         if where_col.len() > 0 && where_vals.len() > 0{
 
-            let ids = match self.collect_target_ids(&target_table.rows, 
+            let ids =  VirtualMachine::collect_target_ids(&target_table.rows, 
                                                     &where_col,
-                                                    &where_vals){
-                Ok(id) => id,
-                Err(err) => return Err(err),
-            };
-
+                                                    &where_vals)?; 
             for id in &ids{
                 let mut row_data: Vec<String> = Vec::new();
 
@@ -102,7 +96,7 @@ impl VirtualMachine {
                    }
                    let row = match target_table.rows.get(id){
                     Some(r) => r,
-                    _ => return Err("invalid target row".red()),
+                    _ => return Err(String::from("invalid target row")),
                    }; 
 
                    let column_data = row.values.get(column);
@@ -124,7 +118,7 @@ impl VirtualMachine {
                }          
         } else {
         //just push through the rows no filter
-            for (id, row) in &mut target_table.rows.clone().into_iter(){
+            for (id, row) in target_table.rows.into_iter(){
                let mut row_data: Vec<String> = Vec::new();
                 
                for column in &cols{
@@ -156,13 +150,11 @@ impl VirtualMachine {
         text_tables::render(&mut out, table_data).unwrap();
         println!("\n--{}--", table_name.to_uppercase());
         println!("{}", str::from_utf8(&out).unwrap());
-        Ok("".green())
+        Ok(String::from(""))
     }
 
-    fn create_table(
-                    &self,
-                    name: &str,
-                    data: &Vec<(String, String)>) -> Result<ColoredString, ColoredString>{
+    fn create_table(name: &str,
+                    data: &Vec<(String, String)>) -> Result<String, String>{
 
         let mut columns: Vec<Column> = Vec::new();
         let mut schema: HashMap<String,String> = HashMap::new();
@@ -177,7 +169,7 @@ impl VirtualMachine {
             }
 
             if schema.contains_key(col_name) && col_name != "id"{
-                return Err("cannot have duplicate column names".red());
+                return Err(String::from("cannot have duplicate column names"));
             } else if schema.contains_key(col_name) && col_name == "id"{
                 continue;
             } 
@@ -187,26 +179,19 @@ impl VirtualMachine {
         }
 
         let table = Table::new(name.to_string(), columns, schema);
-        match self.write_file(table){
-            Ok(_) => {},
-            Err(err) => return Err(err.red()),
-        }
+        VirtualMachine::write_file(table)?;
 
         //if written, we print to user success, then return Ok
-        Ok("Table created successfully".green())
+        Ok(String::from("Table created successfully"))
     }
 
-    fn insert_into_table(&self,
-                         name: &str, 
+    fn insert_into_table(name: &str, 
                          columns: &Vec<String>, 
-                         values: &Vec<Literal>) -> Result<ColoredString, ColoredString>{
+                         values: &Vec<Literal>) -> Result<String, String>{
 
-        let mut target_table: Table = match self.read_file(&name){
-            Ok(table) => table,
-            Err(err) => return Err(err),
-        };
+        let mut target_table: Table = VirtualMachine::read_file(&name)?;
 
-        let id = if columns.len() <= 0 || (columns.len() > 0 && !columns.contains(&"id".to_string())){
+        let id: i64 = if columns.len() <= 0 || (columns.len() > 0 && !columns.contains(&"id".to_string())){
 
             let has_potential_id = match values.get(0){
                 Some(val) => val,
@@ -214,8 +199,8 @@ impl VirtualMachine {
             };
 
             match has_potential_id {
-                Literal::Number(val) => *val as i32,
-                _ => (target_table.rows.len() + 1) as i32, 
+                Literal::Number(val) => *val,
+                _ => (target_table.rows.len() + 1) as i64, 
             }
 
         } else {
@@ -238,11 +223,11 @@ impl VirtualMachine {
                 _ => &(0 as i64),
             };
 
-            *id as i32 
+            *id 
         };
 
         let row_vals = values.iter()
-                         .filter(|val| **val != Literal::Number(id as i64))
+                         .filter(|val| **val != Literal::Number(id))
                          .map(|lit| lit.clone())
                          .collect();
 
@@ -252,9 +237,9 @@ impl VirtualMachine {
                                 .collect();
 
         if columns.len() > 0 {
-            self.validate_schema(&columns, &values, &target_table.schema)?;
+            VirtualMachine::validate_schema(&columns, &values, &target_table.schema)?;
         } else {
-            self.validate_schema(&col_names, &row_vals, &target_table.schema)?;
+            VirtualMachine::validate_schema(&col_names, &row_vals, &target_table.schema)?;
         }  
 
         let row = if columns.len() <= 0 {
@@ -271,7 +256,7 @@ impl VirtualMachine {
                if columns.contains(&col.name){
                     let idx = match columns.iter().position(|x| x == &col.name){
                         Some(i) => i,
-                        None => return Err("Invalid column sequence".red()),
+                        None => return Err(String::from("Invalid column sequence")),
                     }; 
                     filled_rows.push(values[idx].clone());
                } else {
@@ -287,19 +272,17 @@ impl VirtualMachine {
             }
             Row::new(col_names, filled_rows)
         };
-        target_table.rows.insert(id as i64, row);
+        target_table.rows.insert(id, row);
 
-        match self.write_file(target_table){
-            Ok(_) => {},
-            Err(err) => return Err(err.red()),
-        }
-        Ok("Command committed successfully".green())
+        VirtualMachine::write_file(target_table)?;
+
+        Ok(String::from("Command committed successfully"))
     }
 
    ///if we do end up going with the single page format, this will likely look
    ///more like the delete_from_table() format to follow
    ///
-    fn drop_table(&self, name: &String) -> Result<ColoredString, ColoredString>{
+    fn drop_table(name: &String) -> Result<String, String>{
      
         let get_file = OpenOptions::new()
                                     .read(true)
@@ -307,13 +290,11 @@ impl VirtualMachine {
                                     .create(true)
                                     .open("data/database.rdb");
 
-        let mut file = match get_file{
-            Ok(db) => db,
-            Err(err) => return Err(err.to_string().red()),
-        };
+        let mut file = get_file.map_err(|err| err.to_string())?;
 
         let mut buff = Vec::new();
-        file.read_to_end(&mut buff).map_err(|err| err.to_string().red())?;
+        file.read_to_end(&mut buff).map_err(|err| err.to_string())?;
+        
         let mut memory_db: Database = match bincode::deserialize(&buff){
             Ok(exists) => exists,
             Err(_) => {
@@ -325,36 +306,33 @@ impl VirtualMachine {
         };
 
         let res = match memory_db.tables.remove(name){
-            Some(_db) => Ok("Table dropped successfully".green()),
-            None => Err("Unable to remove table".red()),
+            Some(_) => Ok(String::from("Table dropped successfully")),
+            None => Err(String::from("Unable to remove table")),
         };
 
-        
-        let encode: Vec<u8> = bincode::serialize(&memory_db).unwrap();
-        let mut file = File::create("data/database.rdb").map_err(|err| err.to_string().red())?; //same deal with file path here
-        file.write_all(&encode).map_err(|err| err.to_string().red())?; 
        
+        if !res.is_err() {
+            let encode: Vec<u8> = bincode::serialize(&memory_db).unwrap();
+            let mut file =  File::create("data/database.rdb")
+                .map_err(|err| err.to_string())?;
+            file.write_all(&encode).map_err(|err| err.to_string())?; 
+        }
        res 
     }
 
 
-    fn delete_from_table(&self, 
-                         name: &String,
+    fn delete_from_table(name: &String,
                          columns: &Vec<String>,
-                         values: &Vec<Literal>) -> Result<ColoredString, ColoredString>{
+                         values: &Vec<Literal>) -> Result<String, String>{
  
-        let mut target_table: Table = match self.read_file(&name){
-            Ok(table) => table,
-            Err(err) => return Err(err.red()),
-        };
+        let mut target_table: Table = VirtualMachine::read_file(&name)?;
 
-        self.validate_schema(columns, values, &target_table.schema)?;
+        VirtualMachine::validate_schema(columns, values, &target_table.schema)?;
 
-        let ids: Vec<i64> = match self.collect_target_ids(&target_table.rows, columns, values){
-                Ok(ids) => ids,
-                Err(err) => return Err(err.red()),
-        };
-        
+        let ids: Vec<i64> = VirtualMachine::collect_target_ids(&target_table.rows, 
+                                                          columns, 
+                                                          values)?;
+ 
         let mut success: bool = false;
         for id in ids{
             match target_table.rows.remove(&id){
@@ -363,37 +341,30 @@ impl VirtualMachine {
             }
        }
 
-        match self.write_file(target_table){
+        match VirtualMachine::write_file(target_table){
             Ok(_) => {
                 if success != true{
-                    return Err("Unable to remove row(s) from table".red());
+                    return Err(String::from("Unable to remove row(s) from table"));
                 }
             },
-            Err(err) => return Err(err.red()),
+            Err(err) => return Err(err),
         }
-       Ok("Row(s) have been successfully removed from table".green()) 
+       Ok(String::from("Row(s) have been successfully removed from table")) 
     }
 
 
-    fn update_table(&self,
-                    name: &String,
+    fn update_table( name: &String,
                     where_cols: &Vec<String>,
                     where_vals: &Vec<Literal>, 
                     target_cols: &Vec<String>,
-                    target_vals: &Vec<Literal>) -> Result<ColoredString, ColoredString>{
+                    target_vals: &Vec<Literal>) -> Result<String, String>{
       
 
-        let mut target_table: Table = match self.read_file(name){
-            Ok(table) => table,
-            Err(err) => return Err(err),
-        };
+        let mut target_table: Table = VirtualMachine::read_file(name)?;
 
-        self.validate_schema(where_cols, where_vals, &target_table.schema)?;
+        VirtualMachine::validate_schema(where_cols, where_vals, &target_table.schema)?;
 
-        let ids = match self.collect_target_ids(&target_table.rows, where_cols, where_vals){
-            Ok(id) => id,
-            Err(err) => return Err(err),
-        };
+        let ids = VirtualMachine::collect_target_ids(&target_table.rows, where_cols, where_vals)?;
 
         // now that we have the IDs, we can get the rows, then replace the 
         // target columns with the target values
@@ -401,34 +372,27 @@ impl VirtualMachine {
         for id in &ids{
             let row = match target_table.rows.get(id){
                 Some(inner_row) => inner_row,
-                None => return Err("Invalid row in table".red()),
+                None => return Err(String::from("Invalid row in table")),
             };
 
-            self.validate_schema(&target_cols, &target_vals, &target_table.schema)?;
+            VirtualMachine::validate_schema(&target_cols, &target_vals, &target_table.schema)?;
 
             let mut row_replacement = row.clone();
-
             
             for (col, val) in target_cols.into_iter().zip(target_vals){
                 row_replacement.values.insert(col.to_string(), val.clone());       
             }
-
-            
+ 
             target_table.rows.insert(*id, row_replacement);
         }
 
-        match self.write_file(target_table){
-            Ok(_) => {},
-            Err(err) => return Err(err.red()),
-        } 
-
-        Ok("Row(s) have been successfully been updated".green())
+        VirtualMachine::write_file(target_table)?;
+        Ok(String::from("Row(s) have been successfully been updated"))
     }
     
-    fn validate_schema(&self,
-                       col_names: &Vec<String>,
+    fn validate_schema(col_names: &Vec<String>,
                        values: &Vec<Literal>,
-                       schema: &HashMap<String, String>) -> Result<(), ColoredString> {
+                       schema: &HashMap<String, String>) -> Result<(), String> {
 
         for (name, val) in col_names.iter().zip(values){
             let col_type = match schema.get(&String::from(name)){
@@ -440,11 +404,11 @@ impl VirtualMachine {
             
             match val {
                 Literal::String(_) if col_type != "varchar" =>
-                     return Err("Invalid column-type combination".red()),
+                     return Err("Invalid column-type combination for varchar".to_string()),
                 Literal::Number(_) if col_type != "int" => 
-                     return Err("Invalid column-type combination".red()),
+                     return Err("Invalid column-type combination for number".to_string()),
                 Literal::Boolean(_) if col_type != "bit" => 
-                     return Err("Invalid column-type combination".red()),
+                     return Err("Invalid column-type combination for bit".to_string()),
                 _ => {},
             }
         }
@@ -453,10 +417,9 @@ impl VirtualMachine {
     }
 
 
-    fn collect_target_ids(&self,
-                          rows: &BTreeMap<i64, Row>, 
+    fn collect_target_ids(rows: &BTreeMap<i64, Row>, 
                           columns: &Vec<String>, 
-                          values: &Vec<Literal>) -> Result<Vec<i64>, ColoredString>{
+                          values: &Vec<Literal>) -> Result<Vec<i64>, String>{
         let mut ids: Vec<i64> = Vec::new();
         for (id, row) in rows{
 
@@ -464,7 +427,7 @@ impl VirtualMachine {
                 if col == "id" {
                     let inner_id = match val{
                         Literal::Number(inner_id) => inner_id,
-                        _ => return Err("Invalid input for ID value".red()),
+                        _ => return Err(String::from("Invalid input for ID value")),
                     };
 
                     if *inner_id == *id as i64{
@@ -522,7 +485,7 @@ impl VirtualMachine {
 
     //for now each table will have it's own file
     //then we will figure out how to do the actual data model
-    fn read_file(&self, tablename: &str) -> Result<Table, ColoredString> { 
+    fn read_file(tablename: &str) -> Result<Table, String> { 
        
         let get_file = OpenOptions::new()
                                     .read(true)
@@ -530,13 +493,10 @@ impl VirtualMachine {
                                     .create(true)
                                     .open("data/database.rdb");
 
-        let mut file = match get_file{
-            Ok(db) => db,
-            Err(err) => return Err(err.to_string().red()),
-        };
-
+        let mut file = get_file.map_err(|err| err.to_string())?;
+        
         let mut buff = Vec::new();
-        file.read_to_end(&mut buff).map_err(|err| err.to_string().red())?;
+        file.read_to_end(&mut buff).map_err(|err| err.to_string())?;        
         let memory_db: Database = match bincode::deserialize(&buff){
             Ok(exists) => exists,
             Err(_) => {
@@ -549,25 +509,23 @@ impl VirtualMachine {
 
         match memory_db.tables.get(tablename){
             Some(table) => Ok(table.clone()),
-            None => return Err("Target table not found".red()),
+            None => return Err(String::from("Target table not found")),
         }
     }
 
     //simply writes it back
-    fn write_file(&self, in_table: Table) -> Result<(), ColoredString>{
+    fn write_file(in_table: Table) -> Result<(), String>{
         let get_file = OpenOptions::new()
                                     .read(true)
                                     .write(true)
                                     .create(true)
                                     .open("data/database.rdb");
 
-        let mut file = match get_file{
-            Ok(db) => db,
-            Err(err) => return Err(err.to_string().red()),
-        };
+        let mut file = get_file.map_err(|err| err.to_string())?;
 
         let mut buff = Vec::new();
-        file.read_to_end(&mut buff).map_err(|err| err.to_string().red())?;
+        file.read_to_end(&mut buff).map_err(|err| err.to_string())?;
+
         let mut memory_db: Database = match bincode::deserialize(&buff){
             Ok(exists) => exists,
             Err(_) => {
@@ -581,8 +539,9 @@ impl VirtualMachine {
         memory_db.tables.insert(in_table.name.clone(), in_table);
 
         let encode: Vec<u8> = bincode::serialize(&memory_db).unwrap();
-        let mut file = File::create("data/database.rdb").map_err(|err| err.to_string().red())?; //same deal with file path here
-        file.write_all(&encode).map_err(|err| err.to_string().red())?; 
+        let mut file = File::create("data/database.rdb").map_err(|err| err.to_string())?; 
+
+        file.write_all(&encode).map_err(|err| err.to_string())?;
         
         Ok(())
     }

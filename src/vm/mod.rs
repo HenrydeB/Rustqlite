@@ -12,7 +12,10 @@ use virtualmachine::VirtualMachine;
 pub fn process(stmt: Stmt) -> Result<ColoredString, ColoredString>{
 
     let mut vm = VirtualMachine::new(stmt);
-    vm.run()
+    match vm.run(){
+        Ok(msg) => Ok(msg.green()),
+        Err(err) => Err(err.red()),
+    }
 }
 
 pub fn print_schema() -> Result<(), ColoredString>{ 
