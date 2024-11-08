@@ -67,6 +67,4 @@ impl Table {
             schema,
         }
     }
-
-
 }

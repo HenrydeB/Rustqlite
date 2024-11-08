@@ -1,31 +1,34 @@
 use crate::interpreter::token::{TokenType, Token, Literal};
 use crate::interpreter::stmt::{Stmt};
-
+use std::cell::Cell;
 
 #[derive(Debug)]
 pub struct Parser<'p>{
     tokens: &'p [Token],
-    position: usize,
+    position: Cell<usize>,
 }
 
 impl<'p> Parser<'p>{
   pub fn new(tokens: &'p [Token]) -> Self{
         Parser{
             tokens: tokens,
-            position: 0,
+            position: Cell::new(0),
         }
    }
-   //try using lifetimes for this 
+
   fn peek(&self) -> Option<&'p Token>{
-    self.tokens.get(self.position)
+    self.tokens.get(self.position.get())
   }
 
-  fn advance(&mut self) {
-    self.position += 1;
+  fn advance(&self) {
+     let curr_idx = self.position.get();
+     if curr_idx < self.tokens.len(){
+        self.position.set(curr_idx + 1);
+     }
   }
 
   fn peek_next(&self) ->Option<&'p Token> {
-        self.tokens.get(self.position + 1)
+        self.tokens.get(self.position.get() + 1)
   }
 
   //we can expect to return one type of statement in this project
@@ -48,7 +51,7 @@ impl<'p> Parser<'p>{
         }
     }
     
-  fn select_stmt(&mut self) -> Result<Stmt, &str>{
+  fn select_stmt(&self) -> Result<Stmt, &str>{
      let mut columns_set: Vec<String> = Vec::new();
      self.advance();
      let first_col = self.peek(); 
@@ -83,13 +86,7 @@ impl<'p> Parser<'p>{
         None => return Err("Invalid syntax, check statement"),
      }
     
-
-   let table_result = self.get_table_name();
-   //let table_name: &str = self.get_table_name()?;
-   let table_name = match table_result {
-        Ok(name) => String::from(name),
-        Err(_) => return Err("Invalid table name"),
-    };
+    let table_name: &str = self.get_table_name()?;
     
     let mut has_conditions = false;
 
@@ -105,13 +102,9 @@ impl<'p> Parser<'p>{
     }
 
     if has_conditions {
+        let (target_cols, has_vals) = self.parse_equality_list()?;
 
-        let (target_cols, has_vals) = match self.parse_equality_list() {
-            Ok((lhs, rhs)) => (lhs, rhs),
-            Err(_) => return Err("Invalid syntax, check target columns and values"),
-        };
-        let expect_end_statement = self.expect_terminator();
-        match expect_end_statement {
+        match self.expect_terminator() {
             Ok(_end) => {
                  return Ok(Stmt::Select{
                             table_name: String::from(table_name), 
@@ -120,21 +113,20 @@ impl<'p> Parser<'p>{
                             });
             
             },
-            Err(_) => return Err("Invalid syntax, check statement closing conditions"),
+            Err(err) => return Err(err),
         }
     }
-    let expect_end_statement = self.expect_terminator();
-    match expect_end_statement {
+    match self.expect_terminator() {
         Ok(_end) =>  Ok(Stmt::Select{
                         table_name: String::from(table_name), 
                         target_columns: columns_set,
                         where_conditions: None,
                         }), 
-        Err(_) => Err("Invalid syntax, check statement closing conditions"),
+        Err(err) => Err(err),
     }
   }
 
-  fn drop_stmt(&mut self) -> Result<Stmt, &str>{
+  fn drop_stmt(&self) -> Result<Stmt, &str>{
       self.advance();
               
       if let Some(token) = self.peek(){
@@ -144,31 +136,19 @@ impl<'p> Parser<'p>{
           }
       }
 
-      let table = {
-        let table_result = self.get_table_name();
-        match table_result {
-            Ok(table_name) => table_name,
-            Err(err) => return Err(err),  
-        }
-    };
-    
-    let name = String::from(table);   
-    
+    let table_name = self.get_table_name()?;
+ 
     match self.expect_terminator() {
-        Ok(_end) => Ok(Stmt::Drop{table_name: name}),
+        Ok(_end) => Ok(Stmt::Drop{table_name: String::from(table_name)}),
         Err(err) => Err(err),
     }
   }
 
-  fn insert_stmt(&mut self) -> Result<Stmt, &str>{
-    self.advance();
-    let action = self.peek();
-   
-    //find Into
-
-    match action {
-        Some(act) => {
-            match act.token_type {
+  fn insert_stmt(&self) -> Result<Stmt, &str>{
+    self.advance(); 
+    match self.peek() {
+        Some(action) => {
+            match action.token_type {
                 TokenType::Into => self.advance(),
                 _ => return Err("invalid syntax, expect 'into'"),
             };
@@ -176,12 +156,7 @@ impl<'p> Parser<'p>{
         None => return Err("Invalid syntax, check statement"),
     }
 
-    let mut table_name = String::new(); 
-    if let Ok(name) = self.get_table_name(){
-        table_name.push_str(&name);
-    } else {
-        return Err("Inalid syntax, expected table name");
-    }
+    let table_name = self.get_table_name()?; 
     
     self.advance();
 
@@ -202,7 +177,7 @@ impl<'p> Parser<'p>{
        self.advance();
        self.parse_comma_list_literal(&mut val_list)?;
        return Ok(Stmt::Insert{
-            table_name, 
+            table_name: table_name.to_string(), 
             target_columns: col_list, 
             target_values: val_list
         });
@@ -210,11 +185,7 @@ impl<'p> Parser<'p>{
 
     if let Some(next) = self.peek(){
         match next.token_type {
-            TokenType::LeftParen => {
-               if self.parse_comma_list(&mut col_list).is_err() {
-                    return Err("Invalid syntax, check selected columns");
-                }
-            }
+            TokenType::LeftParen => self.parse_comma_list(&mut col_list)?,  
             _ => return Err("Invalid syntax, expected target column list"),
         }
     }
@@ -231,41 +202,30 @@ impl<'p> Parser<'p>{
 
     if let Some(next) = self.peek(){
         match next.token_type {
-            TokenType::LeftParen => {
-               if self.parse_comma_list_literal(&mut val_list).is_err() {
-                    return Err("Invalid syntax, check selected columns");
-                }
-            }
+            TokenType::LeftParen => self.parse_comma_list_literal(&mut val_list)?, 
             _ => return Err("invalid syntax, expected value list"),
         }
     }
 
-    let expect_end_statement = self.expect_terminator();
-    match expect_end_statement {
-        Ok(_end) => Ok(Stmt::Insert{
-            table_name, 
+    match self.expect_terminator() {
+        Ok(true) => Ok(Stmt::Insert{
+            table_name: table_name.to_string(), 
             target_columns: col_list, 
             target_values: val_list
         }),
+        Ok(false) => Err("invalid end to statement"),
         Err(err) => Err(err),
     }
   }
 
 
-  fn update_stmt(&mut self) -> Result<Stmt, &str>{
+  fn update_stmt(&self) -> Result<Stmt, &str>{
     self.advance();
-    let mut table_name = String::new();
+    let table_name = self.get_table_name()?;
     
-    if let Ok(name) = self.get_table_name(){
-        table_name.push_str(&name);
-    } else {
-        return Err("Inalid syntax, expected table name");
-    }
-
     self.advance();
-    let expect_set = self.peek();
-   
-    match expect_set {
+
+    match self.peek() {
         Some(set) => {
             match set.token_type{
                TokenType::Set => self.advance(),
@@ -275,14 +235,9 @@ impl<'p> Parser<'p>{
         None => return Err("Invalid syntax, check statement"),
     }
 
-    let (target_cols, new_vals) = match self.parse_equality_list() {
-        Ok((lhs, rhs)) => (lhs, rhs),
-        Err(_) => return Err("Invalid syntax, check target columns and values"),
-    };
- 
-    let expect_where = self.peek();
- 
-    match expect_where {
+    let (target_cols, new_vals) = self.parse_equality_list()?;
+  
+    match self.peek() {
         Some(token) => {
             match token.token_type {
                 TokenType::Where => self.advance(),
@@ -292,24 +247,22 @@ impl<'p> Parser<'p>{
         None => return Err("Invalid syntax, check statement"),
     }
 
-    if let Ok((lhs, rhs)) = self.parse_equality_list(){
-        
-        if let Ok(_end) = self.expect_terminator(){
-            return Ok(Stmt::Update{
-                        table_name, 
+    let (lhs, rhs) = self.parse_equality_list()?;
+
+    match self.expect_terminator() {
+        Ok(true) => {
+            Ok(Stmt::Update{
+                        table_name: table_name.to_string(), 
                         where_col: lhs, 
                         where_val: rhs, 
                         target_columns: target_cols, 
                         target_values: new_vals
-                    });
-        } else {
-            return Err("Invalid syntax, invalid end to statement")
-        }
-    } else {
-        return Err("invalid syntax, check 'where' conditions");
-    } 
+                    })
+        },
+        Ok(false) => return Err("expected end to statement"),
+        Err(err) => Err(err),
+    }
   }
-
 
   fn create_stmt(&mut self) -> Result<Stmt, &str>{
     self.advance();
@@ -321,52 +274,40 @@ impl<'p> Parser<'p>{
         }
     }
 
-    let mut table_name = String::new(); 
+    let table_name = self.get_table_name()?; 
     
-    if let Ok(name) = self.get_table_name(){ 
-        table_name.push_str(&name);
-    } else {
-        return Err("Invalid syntax, check table name");
-    }
+    self.advance(); 
 
-    self.advance();
-    
-    let expect_left_paren = self.peek(); 
-
-    match expect_left_paren {
+    match self.peek() {
         Some(token) => {
             match token.token_type {
                 TokenType::LeftParen => {
                     self.advance();
-
-                    if let Ok(def) = self.parse_create_list(){ 
-
-                        match self.expect_terminator() {
-                            Ok(false) => return Err("invalid end to statement"),
-                            Err(_e) => return Err("invalid end to statement"),
-                            _ => {},
-                        };
-
-                        return Ok(Stmt::Create{
-                                  table_name, 
-                                  columns_and_data: def
-                              }); 
-                        } else {
-                            return Err("invalid syntax, expected table definition");
-                        }
+                    
+                    let def = self.parse_create_list()?;
+                    
+                    match self.expect_terminator() {
+                        Ok(true) => {
+                            return Ok(Stmt::Create{
+                                      table_name: table_name.to_string(), 
+                                      columns_and_data: def
+                                  }); 
+                        }, 
+                        Ok(false) => return Err("expected end to statement"),
+                        Err(err) => return Err(err), 
+                    }
                 },
                 _ => Err("Invalid syntax, expected parenthesis-bound list"),
                 }
             },
-            None => return Err("invalid syntax, check statement"),
+            None => return Err("invalid syntax, missing token for valid statement"),
         } 
     }
     
 
   fn delete_stmt(&mut self) -> Result<Stmt, &str>{
     self.advance();
-    let expect_from = self.peek();
-    match expect_from{
+    match self.peek(){
         Some(token) => {
             match token.token_type{
                 TokenType::From => self.advance(),
@@ -376,18 +317,11 @@ impl<'p> Parser<'p>{
         None => return Err("invalid syntax, check statement"),
     }
    
-    let mut name = String::new();
+    let name = self.get_table_name()?;
     
-    if let Ok(name_val) = self.get_table_name(){
-        name.push_str(name_val);
-    } else {
-        return Err("Invalid syntax, check target table name");
-    }
-
     self.advance();
-    let expect_where = self.peek();
 
-    match expect_where {
+    match self.peek() {
         Some(token) => {
             match token.token_type{ 
                 TokenType::Where => {}, 
@@ -398,24 +332,15 @@ impl<'p> Parser<'p>{
     }
     self.advance();
 
-    let res = self.parse_equality_list();
-
-    match res {
-        Ok((lhs, rhs)) => {
-            let left: Vec<String> = lhs;
-            let right: Vec<Literal> = rhs;
-            
-            Ok(Stmt::Delete{
-                table_name: name, 
-                lhs: left, 
-                rhs: right,
-            })
-        },
-        Err(err) => Err(err)
-    }
+    let (lhs, rhs) = self.parse_equality_list()?;
+         
+    Ok(Stmt::Delete{
+        table_name: name.to_string(), 
+        lhs, 
+        rhs,
+    })   
   }
 
-  // Consider chaging this to return two &str instead
   fn get_table_name(&self)  -> Result<&str, &str>{
     let table_token = self.peek();
     match table_token {
@@ -444,7 +369,7 @@ impl<'p> Parser<'p>{
     }
   }
 
-  fn parse_create_list(&mut self) -> Result<Vec<(String, String)>, &str> {
+  fn parse_create_list(&self) -> Result<Vec<(String, String)>, &str> {
         let mut cols_data = Vec::new();
 
         loop {
@@ -492,7 +417,7 @@ impl<'p> Parser<'p>{
   /// as we parse through their list. This function handles this kind
   /// of parsing
   
-  fn parse_equality_list(&mut self) -> Result<(Vec<String>, Vec<Literal>), &str>{ 
+  fn parse_equality_list(&self) -> Result<(Vec<String>, Vec<Literal>), &str>{ 
     let mut cols = Vec::new();
     let mut vals = Vec::new();
 
@@ -535,7 +460,7 @@ impl<'p> Parser<'p>{
            match token.token_type{
             TokenType::Number | TokenType::True | TokenType::False | TokenType::String => {
                     if let Some(literal) = &token.literal { 
-                        vals.push(literal.clone()); //doesn't matter, as long as it is a literal 
+                        vals.push(literal.clone());  
                     } else {
                         return Err("invalid syntax, expected literal");
                     }
@@ -556,7 +481,7 @@ impl<'p> Parser<'p>{
        Ok((cols, vals))
   }
 
-    fn parse_comma_list_literal(&mut self, target_vals: &mut Vec<Literal>) -> Result<(), &str> {
+    fn parse_comma_list_literal(&self, target_vals: &mut Vec<Literal>) -> Result<(), &str> {
         loop {
             let current_token = self.peek();
 
@@ -583,7 +508,7 @@ impl<'p> Parser<'p>{
         Ok(())
       }
 
-    fn parse_comma_list(&mut self, target_columns: &mut Vec<String>) -> Result<(), &str> {
+    fn parse_comma_list(&self, target_columns: &mut Vec<String>) -> Result<(), &str> {
         loop {
             let current_token = self.peek();
 
