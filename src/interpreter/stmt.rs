@@ -33,6 +33,6 @@ pub enum Stmt/*<'s>*/{
         where_col: Vec<String>, 
         where_val: Vec<Literal>, 
         target_columns: Vec<String>,
-        target_values: Vec<Literal>, //explore different data structure
+        target_values: Vec<Literal>, 
    },
 }

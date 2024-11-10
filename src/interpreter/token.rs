@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 
 #[derive(Debug, Clone)]
 pub enum TokenType {
@@ -12,7 +13,7 @@ pub enum TokenType {
     LeftParen, RightParen, Comma, SemiColon, Asterisk, Quote,
 
     //ops
-    Equal, Greater, Less, NotEqual, And, Or, Not,
+    Equal, And, 
 
     //Literals
     Number, String, True, False, 
@@ -22,6 +23,7 @@ pub enum TokenType {
 
     EOF
 }
+
 
 #[derive(serde::Deserialize)]
 #[derive(serde::Serialize)]
@@ -43,8 +45,6 @@ impl PartialEq<i64> for Literal{
     }
 }
 
-
-
 #[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
@@ -57,7 +57,7 @@ impl Token{
         Token{
             token_type,
             lexeme,
-            literal, //see if you can pass none if there are no literals
+            literal,
         }
     }
 }
