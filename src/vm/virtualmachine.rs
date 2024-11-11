@@ -264,7 +264,7 @@ impl VirtualMachine {
                     let filler_val = match &*col.datatype {
                         "varchar" => Literal::String(String::from("")),
                         "int" => Literal::Number(0),
-                        "bit" => Literal::Boolean(false),
+                        "bool" => Literal::Boolean(false),
                         _ => Literal::String(String::from("")),
                     }; 
                     filled_rows.push(filler_val);
@@ -407,8 +407,8 @@ impl VirtualMachine {
                      return Err("Invalid column-type combination for varchar".to_string()),
                 Literal::Number(_) if col_type != "int" => 
                      return Err("Invalid column-type combination for number".to_string()),
-                Literal::Boolean(_) if col_type != "bit" => 
-                     return Err("Invalid column-type combination for bit".to_string()),
+                Literal::Boolean(_) if col_type != "bool" => 
+                     return Err("Invalid column-type combination for bool".to_string()),
                 _ => {},
             }
         }

@@ -195,7 +195,7 @@ impl<'s> Scanner<'s>{
             "drop" => Some(TokenType::Drop),
             "int" => Some(TokenType::Int),
             "varchar" => Some(TokenType::VarChar),
-            "bit" => Some(TokenType::Bit),
+            "bool" => Some(TokenType::Bool),
             "=" => Some(TokenType::Equal),
             "equals" => Some(TokenType::Equal),
             "(" => Some(TokenType::LeftParen),

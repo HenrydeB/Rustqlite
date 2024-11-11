@@ -7,7 +7,7 @@ pub enum TokenType {
     Insert, Into, Update, Delete, Drop, Set, Values,  
     
     //datatypes
-    Int, VarChar, Bit,
+    Int, VarChar, Bool,
 
     //punctuation
     LeftParen, RightParen, Comma, SemiColon, Asterisk, Quote,

@@ -399,7 +399,7 @@ impl<'p> Parser<'p>{
            match rhs {
             Some(token) => {
                match token.token_type{
-                   TokenType::Int | TokenType::VarChar | TokenType::Bit => {
+                   TokenType::Int | TokenType::VarChar | TokenType::Bool => {
                        datatype.push_str(&token.lexeme);
                        self.advance();
                    },
