@@ -68,3 +68,10 @@ impl Table {
         }
     }
 }
+
+#[derive(serde::Deserialize)]
+#[derive(serde::Serialize)]
+#[derive(Debug, Clone)]
+pub struct Database {
+    pub tables: BTreeMap<String, Table>,
+}

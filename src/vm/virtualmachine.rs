@@ -2,60 +2,51 @@ extern crate text_tables;
 
 use std::str;
 use std::collections::{HashMap, BTreeMap};
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
-use colored::*;
+use std::fs::{File};
+use std::io::Write;
+use std::cell::RefMut;
 
 use crate::interpreter::stmt::{Stmt};
 use crate::interpreter::token::{Literal};
-use crate::vm::table::{Table, Row, Column};
+use crate::vm::db::{Table, Row, Column, Database};
     
-#[derive(serde::Deserialize)]
-#[derive(serde::Serialize)]
-#[derive(Debug, Clone)]
-pub struct Database {
-    pub tables: BTreeMap<String, Table>,
+pub struct VirtualMachine<'a> {
+    db: RefMut<'a, Database>
 }
 
-pub struct VirtualMachine {
-    command: Stmt,
-}
-
-impl VirtualMachine {
-    pub fn new(statement: Stmt) -> Self{
+impl <'a>VirtualMachine<'a> {
+    pub fn new(db: RefMut<'a, Database>) -> Self{
         Self{
-           command: statement,
+           db
         }
     }
 
-    pub fn run(&mut self) -> Result<String, String>{ //at some point change to Table, &str
-        let result = match &self.command {
+    pub fn run(&mut self, command: Stmt ) -> Result<String, String>{ //at some point change to Table, &str
+        let result = match command {
             Stmt::Select{table_name, target_columns, where_conditions} => 
-                VirtualMachine::select_table(table_name, target_columns, where_conditions),
+                self.select_table(&table_name, target_columns, where_conditions),
             Stmt::Create{table_name, columns_and_data} => 
-                VirtualMachine::create_table(table_name, columns_and_data),
+                self.create_table(&table_name, &columns_and_data),
             Stmt::Insert{table_name, target_columns, target_values} => 
-                VirtualMachine::insert_into_table(table_name, target_columns, target_values),
+                self.insert_into_table(&table_name, &target_columns, &target_values),
             Stmt::Drop{table_name} => 
-                VirtualMachine::drop_table(table_name),
+                self.drop_table(&table_name),
             Stmt::Delete{table_name, lhs, rhs} => 
-                VirtualMachine::delete_from_table(table_name, lhs, rhs),
+                self.delete_from_table(&table_name, &lhs, &rhs),
             Stmt::Update{table_name, where_col, where_val, target_columns, target_values} => 
-                VirtualMachine::update_table(table_name, where_col, where_val, target_columns, target_values),
+                self.update_table(&table_name, &where_col, &where_val, &target_columns, &target_values),
         };
         result
     }
 
 
-    fn select_table( 
+    fn select_table(&self, 
                     table_name: &str, 
-                    target_columns: &Vec<String>,
-                    where_conditions: &Option<(Vec<String>, Vec<Literal>)>
+                    target_columns: Vec<String>,
+                    where_conditions: Option<(Vec<String>, Vec<Literal>)>
                     ) -> Result<String, String>{
    
-        let target_table: Table =  VirtualMachine::read_file(&table_name)?;
-        
-        let table_name = &target_table.name;
+        let target_table = self.get_table(&table_name)?;
 
         let is_all = match target_columns.get(0){
            Some(val) if val == "*" => true,
@@ -72,7 +63,7 @@ impl VirtualMachine {
         };
 
         let (where_col, where_vals): (Vec<String>, Vec<Literal>) = match where_conditions {
-            Some((wc, wv)) => (wc.to_vec(), wv.to_vec()),
+            Some((wc, wv)) => (wc, wv),
             None => (Vec::new(), Vec::new()),
         };
 
@@ -153,7 +144,8 @@ impl VirtualMachine {
         Ok(String::from(""))
     }
 
-    fn create_table(name: &str,
+    fn create_table(&mut self,
+                    name: &str,
                     data: &Vec<(String, String)>) -> Result<String, String>{
 
         let mut columns: Vec<Column> = Vec::new();
@@ -179,17 +171,18 @@ impl VirtualMachine {
         }
 
         let table = Table::new(name.to_string(), columns, schema);
-        VirtualMachine::write_file(table)?;
 
         //if written, we print to user success, then return Ok
+        self.db.tables.insert(table.name.clone(), table);
         Ok(String::from("Table created successfully"))
     }
 
-    fn insert_into_table(name: &str, 
+    fn insert_into_table(&mut self,
+                         name: &String, 
                          columns: &Vec<String>, 
                          values: &Vec<Literal>) -> Result<String, String>{
 
-        let mut target_table: Table = VirtualMachine::read_file(&name)?;
+        let mut target_table: Table = self.get_table(&name)?;
 
         let id: i64 = if columns.len() <= 0 || (columns.len() > 0 && !columns.contains(&"id".to_string())){
 
@@ -274,58 +267,37 @@ impl VirtualMachine {
         };
         target_table.rows.insert(id, row);
 
-        VirtualMachine::write_file(target_table)?;
+        self.write_table(target_table)?;
 
         Ok(String::from("Command committed successfully"))
     }
 
    ///if we do end up going with the single page format, this will likely look
    ///more like the delete_from_table() format to follow
-   ///
-    fn drop_table(name: &String) -> Result<String, String>{
-     
-        let get_file = OpenOptions::new()
-                                    .read(true)
-                                    .write(true)
-                                    .create(true)
-                                    .open("data/database.rdb");
-
-        let mut file = get_file.map_err(|err| err.to_string())?;
-
-        let mut buff = Vec::new();
-        file.read_to_end(&mut buff).map_err(|err| err.to_string())?;
-        
-        let mut memory_db: Database = match bincode::deserialize(&buff){
-            Ok(exists) => exists,
-            Err(_) => {
-                println!("{}", "No database found.. creating new DB instance".red());
-                Database{
-                    tables : BTreeMap::new(),
-                }
-            },
-        };
-
-        let res = match memory_db.tables.remove(name){
+   
+    fn drop_table(&mut self, name: &String) -> Result<String, String>{
+    
+        let res = match self.db.tables.remove(name){
             Some(_) => Ok(String::from("Table dropped successfully")),
             None => Err(String::from("Unable to remove table")),
         };
-
-       
+        
         if !res.is_err() {
-            let encode: Vec<u8> = bincode::serialize(&memory_db).unwrap();
+            let encode: Vec<u8> = bincode::serialize(&*self.db).unwrap();
             let mut file =  File::create("data/database.rdb")
                 .map_err(|err| err.to_string())?;
             file.write_all(&encode).map_err(|err| err.to_string())?; 
         }
-       res 
+       res         
     }
 
 
-    fn delete_from_table(name: &String,
+    fn delete_from_table(&mut self,
+                         name: &String,
                          columns: &Vec<String>,
                          values: &Vec<Literal>) -> Result<String, String>{
  
-        let mut target_table: Table = VirtualMachine::read_file(&name)?;
+        let mut target_table: Table = self.get_table(&name)?;
 
         VirtualMachine::validate_schema(columns, values, &target_table.schema)?;
 
@@ -340,27 +312,21 @@ impl VirtualMachine {
                 None => success = false,
             }
        }
-
-        match VirtualMachine::write_file(target_table){
-            Ok(_) => {
-                if success != true{
-                    return Err(String::from("Unable to remove row(s) from table"));
-                }
-            },
-            Err(err) => return Err(err),
+        if success == true{
+            self.write_table(target_table)?;
         }
        Ok(String::from("Row(s) have been successfully removed from table")) 
     }
 
 
-    fn update_table( name: &String,
+    fn update_table(&mut self, 
+                    name: &String,
                     where_cols: &Vec<String>,
                     where_vals: &Vec<Literal>, 
                     target_cols: &Vec<String>,
-                    target_vals: &Vec<Literal>) -> Result<String, String>{
-      
+                    target_vals: &Vec<Literal>) -> Result<String, String>{ 
 
-        let mut target_table: Table = VirtualMachine::read_file(name)?;
+        let mut target_table: Table = self.get_table(&name)?;
 
         VirtualMachine::validate_schema(where_cols, where_vals, &target_table.schema)?;
 
@@ -386,7 +352,7 @@ impl VirtualMachine {
             target_table.rows.insert(*id, row_replacement);
         }
 
-        VirtualMachine::write_file(target_table)?;
+        self.write_table(target_table)?;
         Ok(String::from("Row(s) have been successfully been updated"))
     }
     
@@ -485,64 +451,18 @@ impl VirtualMachine {
 
     //for now each table will have it's own file
     //then we will figure out how to do the actual data model
-    fn read_file(tablename: &str) -> Result<Table, String> { 
-       
-        let get_file = OpenOptions::new()
-                                    .read(true)
-                                    .write(true)
-                                    .create(true)
-                                    .open("data/database.rdb");
-
-        let mut file = get_file.map_err(|err| err.to_string())?;
-        
-        let mut buff = Vec::new();
-        file.read_to_end(&mut buff).map_err(|err| err.to_string())?;        
-        let memory_db: Database = match bincode::deserialize(&buff){
-            Ok(exists) => exists,
-            Err(_) => {
-                println!("{}", "No database found.. creating new DB instance".red());
-                Database{
-                    tables : BTreeMap::new(),
-                }
-            },
-        };
-
-        match memory_db.tables.get(tablename){
+    fn get_table(&self, tablename: &str) -> Result<Table, String>{
+        match self.db.tables.get(tablename){
             Some(table) => Ok(table.clone()),
-            None => return Err(String::from("Target table not found")),
+            None => Err(String::from("Target table not found")),
         }
     }
 
     //simply writes it back
-    fn write_file(in_table: Table) -> Result<(), String>{
-        let get_file = OpenOptions::new()
-                                    .read(true)
-                                    .write(true)
-                                    .create(true)
-                                    .open("data/database.rdb");
-
-        let mut file = get_file.map_err(|err| err.to_string())?;
-
-        let mut buff = Vec::new();
-        file.read_to_end(&mut buff).map_err(|err| err.to_string())?;
-
-        let mut memory_db: Database = match bincode::deserialize(&buff){
-            Ok(exists) => exists,
-            Err(_) => {
-                println!("{}", "No database found.. creating new DB instance".red());
-                Database{
-                    tables : BTreeMap::new(),
-                }
-            },
-        };
-
-        memory_db.tables.insert(in_table.name.clone(), in_table);
-
-        let encode: Vec<u8> = bincode::serialize(&memory_db).unwrap();
-        let mut file = File::create("data/database.rdb").map_err(|err| err.to_string())?; 
-
-        file.write_all(&encode).map_err(|err| err.to_string())?;
-        
-        Ok(())
+    fn write_table(&mut self, in_table: Table) -> Result<(), String>{
+        match self.db.tables.insert(in_table.name.clone(), in_table){
+            Some(_) => {Ok(())},
+            None => Err(String::from("Unable to write to database")),
+        }
     }
 }
