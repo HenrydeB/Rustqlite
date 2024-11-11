@@ -5,7 +5,7 @@ use crate::interpreter::token::{Literal};
 //
 //commenting out lifetime in case we want to swap out the Strings for &str
 #[derive(Debug, Clone)]
-pub enum Stmt/*<'s>*/{
+pub enum Stmt{
    Select{
         table_name: String,
         target_columns: Vec<String>,
