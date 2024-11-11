@@ -121,44 +121,50 @@ One of the objectives of this project was to  avoid panics as much as possible. 
 
 ![alt text](https://github.com/HenrydeB/Rustqlite/blob/main/diagrams/structs.drawio.png)
 
-*** Interpreter
-**** enum TokenType
+### Interpreter
+#### enum TokenType
 This enumerable contains different keywords that the scanner is looking out for when defining the token type. We are displaying the category of token types available in the image above, if you would like to see a more concise list of the token types please refer to `src/interpreter/tokens.rs`
 
-**** enum Literal
+#### enum Literal
 This enumerable contains a series of tuple structs that represent the values of the fields to be saved within a table in our database. This acts like an Option type and includes a None for those tokens who do not need a value saved for the Literal field.
 
-**** Token
+#### Token
 This struct contains three fields: the TokenType, the lexeme, and the literal. As stated above, the literal is an Option as not all Tokens will need this field populated, which is why we included the Option type.
 
-*** Virtual Machine
-**** Table
+### Virtual Machine
+#### Table
 The table struct is the foundation of this project. Containg a name field along with a vector of Columns, a row field organized as a BTreeMap with the row ID being the key and the Row instance itself as the values, and finally a "schema" HashMap which contains Column Name as the key and the Datatype of the column as the value. This allows us to verify the input and update requests have the required data types before we commit them to our tables.
 
-**** Column
+#### Column
 This is a simple struct, only storing the name and the data type of the column.
 
-**** Row
+#### Row
 This contains a 'values' HashMap, which maps the column name to the literal to be set at that column "cell". 
 
-**** Database
+#### Database
 This is what organizes our `database.rdb` file. Set up as a BTreeMap that maps the table name and the table itself. 
 
-**** Virtual Machine
+#### Virtual Machine
 The VM struct only contains the command Stmt that was passed in when the struct is created.
 
-*** enum Stmt
+### enum Stmt
 
 ![alt text](https://github.com/HenrydeB/Rustqlite/blob/main/diagrams/statements.drawio.png)
 
 As you can see, there are several kinds of statement structs within this enumerable. Because the objective of this project was to get the basic functionality of a database system to work, the statements were set up with a rather strict structure so the program can explicitly expect a certain series of values from the scanner and parser, though there are similarities in structure between some of the statements (where conditions, target values and columns, etc.). This would be a primary target for refactoring if this project were to continue.
 
-*** Crates Used
+### Crates Used
 I made an effort to avoid using code outside of the standard library as much as I could, however there are a few that I used for stylistic purposes and a couple to help with serialization and binary encoding (for reading/writing the database). 
 
-**** Style
+#### Style
 After spending a lot of time attempting to create a good table structure to print my objects myself, out of frustration I began wondering if I  could find an existing crate that did this service. Fortunately, I did. Text-tables is a fantastic crate that takes in a Vec<Vec<String>> structure, and outputs it in tabular format.
 
 I also used Colored to help with coloring the outputs of the success, error, and schema texts, for an improved user experience.
 
+#### Serialization
+While researching serialization/deserialization for this project, the top package that came up  for this was Serde. This happens to be one of the top crates used by Rustaceans, so I thought it would be a good fit. All structs that are a part of the data that gets set to our `database.rdb` file. Once the required attributes are set on those structs, we use the crate Bincode, which implements Serde, for binary serialization, which I thought was the best implementation of serialization for this project. 
+
+Again, here we use `serde(serialize, deserialize)` to help different structs to be serialized, then we use the crate `bincode` that interfaces with `serde` to do the actual serialization of our data into our database file.
+
+## Next Steps
 
