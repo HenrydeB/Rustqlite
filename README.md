@@ -1,3 +1,14 @@
+```OCaml
+______          _   _____ _     _ _            /\
+| ___ \        | | |  _  | |   (_) |          ( /   @ @    ()
+| |_/ /   _ ___| |_| | | | |    _| |_ ___      \  __| |__  /
+|    / | | / __| __| | | | |   | | __/ _ \      -/   V   \-
+| |\ \ |_| \__ \ |_\ \/' / |___| | ||  __/     /-|       |-\
+\_| \_\__,_|___/\__|\_/\_\_____/_|\__\___|    / /-\     /-\ \
+                                              / /-\     /-\ \
+                                             /   /-`---'-\ \
+                                                /         \
+```
 # Welcome to RustQLite
 This is a lightweight database management system inspired by the structure of SQLite.
 This project includes a simple SQL interpreter that is able to process a few basic versions of the following commands: 
