@@ -15,16 +15,25 @@ This project includes a simple SQL interpreter that is able to process a few bas
 CREATE, SELECT, INSERT, UPDATE, DROP and DELETE. 
 
 ## Database Structure
-This project only allows for a single database, which is found in `data/database.rdb` for now (you may need to create your own `data` directory when you fork. This single database acts similarly to SQLite where all tables are found on one file. This database is organized as a BTreeMap, where the unique identifier of the table is the table name, and the table itself is stored as the value.
+This project only allows for a single database, which is found in `data/database.rdb` for now (you may need to create your own `data` directory when you fork). This single database acts similarly to SQLite where all tables are found on one file. This database is organized as a BTreeMap, where the unique identifier of the table is the table name, and the table itself is stored as the value.
 
 To view your current tables in your database, use the `schema` command.
 
 ## Running the Program
 In it's current state, this program requires you to have Rust and Cargo installed on your machine. 
 After cloning this repository, running `cargo run` in your terminal will open the basic RustQLite 
-repl where you can immediately start writing commands. On a successful command, this will return an Ok() and the 
-statement definition that you submitted. Otherwise, this will return an error that defines where the issue in your 
-code is.
+repl where you can immediately start writing commands. 
+
+After a valid command is entered, the program will either respond with a table defenition for SELECT statements, or a green success message for all other commands. If the command is unsuccessful, the program will return a red error message, which will allow you to try again with updated syntax.
+
+```SQL
+# After running cargo run and RUSTQLITE welcome message is shown you can start entering commands
+
+> SELECT * FROM <table name>;
+
+<returns table definition>
+
+```
 
 ## Available Commands
 
@@ -36,6 +45,10 @@ code is.
 > has a conditions that would match a value within any one of your WHERE clauses, this would be a valid row for the statement. This was done for the
 > sake of simplicity an due to time constraints, but will be updated in the future.
 
+### Non-SQL Commands
+* `schema` will print out the names of available tables
+* `exit` will exit the program
+
 ### SELECT
 A select statement can request all columns from the target table using an aserisk `*` or a collection of desired columns from the table by listing them:
 
@@ -43,8 +56,6 @@ A select statement can request all columns from the target table using an aseris
 SELECT * FROM <table name>;
 
 SELECT column1, column2 FROM <table>;
-
-SELECT <column set> FROM <table> WHERE <conditions>
 ```
 You can also include conditions to filter your select statement. You can have multiple conditions separated by an `AND` clause.
 
@@ -74,7 +85,7 @@ CREATE TABLE <table_name> (col1 datatype, col2 datatype);
 Note that an ID field MUST be the first field that gets added, otherwise and ID column will be added for you. Subsequent ID columns must be IDs that reference a separate table.
 
 #### DataTypes
-Possible data types you can pass in are `int`, `varchar`, and `bit`. Here, `int` can take any valid non-floating point number, `varchar` accepts a string of characters surrounded by `' '` single quotes, and a bit will accept the values `true` or `false`. You may wonder, why should `bit` accept written true or false instead of `1` or `0`? The `bit` datatype was written as such to mimic SQL server's syntax, though the implementation on the back end is used as true or false, so in an effort to make it more clear to everyone involved, we allow it to accept `true` or `false`.
+Possible data types you can pass in are `int`, `varchar`, and `bit`. Here, `int` can take any valid non-floating point number, `varchar` accepts a string of characters surrounded by `' '` single quotes, and a bit will accept the values `true` or `false`. You may wonder, why should `bit` accept written true or false instead of `1` or `0`? The `bit` datatype was written as such to mimic SQL server's syntax, though the implementation on the back end is used as true or false. For the sake of simplicity in this project, I thought using `true` and `false` for this would work as a way to differenciate between this datatype and `int`, seeing as when we save to `database.rdb` it will be encoded the same way anyway.
 
 ### DROP TABLE
 If you would like to drop a table you have already created, then the command is simply
@@ -95,9 +106,6 @@ An update statement will update a field or a set of fields in a row of a table. 
 ```SQL
 UPDATE <table_name> SET col1 = <desired_val> WHERE col2 = <curr_val>;
 ```
-### Other Commands
-* `schema` will print out the available table names you have created
-* `exit` will exit the program
 
 ## Interacting with the VM
 
@@ -110,15 +118,16 @@ The general overview of the architecture for this program is as follows
 ![alt text](https://github.com/HenrydeB/Rustqlite/blob/main/diagrams/arch_overview.drawio.png)
 
 1. User first starts up the program
-2. user inputs the command to be processed by the interpreter
-3. scanner processes the command into tokens and sends to parser
-4. parser processes tokens into relevant Stmt struct for command
+2. User inputs the command to be processed by the interpreter
+3. Scanner processes the command into tokens and sends to parser
+4. Parser processes tokens into relevant Stmt struct for command
 5. Virtual Machine receives statement and processes it
 6. Depending on command type, we will read or write to database
 7. If error, return String converted into ColoredString colored red for error message, if success message is returned and colored green
 
 One of the objectives of this project was to  avoid panics as much as possible. This project relies on error propagation from any one function to the entrypoint, which would then be colored for user experience purposes.
 
+### Structs and Enums
 ![alt text](https://github.com/HenrydeB/Rustqlite/blob/main/diagrams/structs.drawio.png)
 
 ### Interpreter
