@@ -1,6 +1,6 @@
 # Welcome to RustQLite
 This is a lightweight database management system inspired by the structure of SQLite.
-This project includes a simple SQL interpreter that is able to process a few basic commands: 
+This project includes a simple SQL interpreter that is able to process a few basic versions of the following commands: 
 CREATE, SELECT, INSERT, UPDATE, DROP and DELETE. 
 
 ## Database Structure
@@ -19,9 +19,11 @@ code is.
 
 > [!NOTE]
 > ALL commands must end with a `;` terminator, otherwise this will be identified as an invalid statement.
-> ALL commands are confied to a single line as of 10/21/2024.
+> ALL commands are confied to a single line.
 >
-> 
+> A special note on WHERE clauses: when you list a series of conditions in a WHERE, this project only supports AND in the sense that if any row
+> has a conditions that would match a value within any one of your WHERE clauses, this would be a valid row for the statement. This was done for the
+> sake of simplicity an due to time constraints, but will be updated in the future.
 
 ### SELECT
 A select statement can request all columns from the target table using an aserisk `*` or a collection of desired columns from the table by listing them:
@@ -29,7 +31,9 @@ A select statement can request all columns from the target table using an aseris
 ```SQL
 SELECT * FROM <table name>;
 
-SELECT column1, column2 FROM <table column>;
+SELECT column1, column2 FROM <table>;
+
+SELECT <column set> FROM <table> WHERE <conditions>
 ```
 You can also include conditions to filter your select statement. You can have multiple conditions separated by an `AND` clause.
 
@@ -87,3 +91,5 @@ UPDATE <table_name> SET col1 = <desired_val> WHERE col2 = <curr_val>;
 ## Interacting with the VM
 
 When executing a command, the Rustqlite virtual machine will provide feedback to you to help you understand if a command was successful or not. Whether it is a SELECT statement, which will return the target table or inform you that the table does not exist, or any other "WRITE" actions to a database, the  virtual machine will respond with a success message or not.
+
+## Architectural Overview
