@@ -15,18 +15,18 @@ This project includes a simple SQL interpreter that is able to process a few bas
 CREATE, SELECT, INSERT, UPDATE, DROP and DELETE. 
 
 ## Database Structure
-This project only allows for a single database, which is found in `data/database.rdb` for now (you may need to create your own `data` directory when you fork). This single database acts similarly to SQLite where all tables are found on one file. This database is organized as a BTreeMap, where the unique identifier of the table is the table name, and the table itself is stored as the value.
+This project only allows for a single database, which is found in `data/database.rdb` for now (you may need to create your own `data` directory when you fork, the `database.rdb` file will then be created for you). This single database acts similarly to SQLite where all tables are found on one file. This database is organized as a BTreeMap, where the unique identifier of the table is the table name, and the table itself is stored as the value.
 
 To view your current tables in your database, use the `schema` command.
 
 ## Running the Program
-In it's current state, this program requires you to have Rust and Cargo installed on your machine. 
+This program currently requires you to have Rust and Cargo installed on your machine. 
 After cloning this repository, running `cargo run` in your terminal will open the basic RustQLite 
 repl where you can immediately start writing commands. 
 
 ### Running for the First Time
 
-If you are running this program for the first time, I can assume that you may have an empty `data/` directory at the program's root (if not you should create one). Because you have an empty directory, when RustQLite attempts to read a database, this would normally fail because it will not be able to find a valid DB. Instead, you will get a warning message stating `No database found... creating new DB instance`. Then, if the command you entered requires a table to already exist (so not a CREATE), you will receive an error. 
+If you are running this program for the first time, I can assume that you may have an empty `data/` directory at the program's root (if not you should create one). Because you have an empty directory, when RustQLite attempts to read a database, this would normally fail because it will not be able to find a valid DB. Instead, you will get a warning message stating `No database found... creating new DB instance`. Then, if the command you entered requires a table to already exist (so not a CREATE statement), you will receive an error. 
 
 _I would suggest using a CREATE command to start._
 
@@ -44,7 +44,7 @@ After a valid command is entered, the program will either respond with a table d
 ## Available Commands
 
 > [!NOTE]
-> ALL commands must end with a `;` terminator, otherwise this will be identified as an invalid statement.
+> ALL SQL-commands must end with a `;` terminator, otherwise this will be identified as an invalid statement.
 > ALL commands are confied to a single line.
 >
 > A special note on WHERE clauses: when you list a series of conditions in a WHERE, this project only supports AND in the sense that if any row
@@ -73,7 +73,7 @@ SELECT * FROM <table_name> WHERE <column_1> = <desired value> AND <column_2> = <
 
 ### INSERT INTO
 An **INSERT INTO** statement targets a table to insert a new row into. There are two forms of this statement, one where you define the target columns and values, 
-and another where you define just the values. If you decide to only insert values without target columns, it is expected that you  are inserting values for all columns.
+and another where you define just the values. If you decide to only insert values without target columns, it is expected that you  are inserting values for all columns and in order.
 ```SQL
 INSERT INTO <table_name> (col1, col2, col3) VALUES (val1, val2, val3);
 # or
@@ -81,6 +81,7 @@ INSERT INTO <table_name> VALUES (val1, val2, val3);
 ```
 
 Note that if you don't define a value for the ID field when you are inserting, the ID will be generated for you.
+
 You may also wish to not define a value for a particular column. You may do this if you would like, however no datatypes in this project are nullable, so the missed fields will be filled with their default values (numbers will be 0, varchar will be an empty string, and a bit will be false by default);
 
 ### CREATE TABLE
@@ -182,6 +183,6 @@ While researching serialization/deserialization for this project, the top packag
 Again, here we use `serde(serialize, deserialize)` to help different structs to be serialized, then we use the crate `bincode` that interfaces with `serde` to do the actual serialization of our data into our database file.
 
 ## Next Steps
-There are a number of changes & features I would like to implement if I were to have more time. The first change I would implement is the parser. As stated before, the objective of this project was to attempt to create a simple database system. Because of this, I did not implement a recursive decent parser because I did not want to run out of time at the end. This would be the first thing I would change. I believe that implementing a recursive decent parser may provide me with the opportunity to alter the datatypes used within the structs for Tokens and Statements, hopefully minimizing the clone operations needed to get the tables printed/written.
+There are a number of changes & features I would like to implement if I were to have more time. The first change I would implement is the parser. As stated before, the objective of this project was to attempt to create a simple database system. Because of this, I did not implement a recursive descent parser because I did not want to run out of time at the end. This would be the first thing I would change. I believe that implementing a recursive descent parser may provide me with the opportunity to alter the datatypes used within the structs for Tokens and Statements, hopefully minimizing the clone operations needed to get the tables printed/written.
 
-The next step would be to investigate concurrency in this project. Though SQLite is frequently used as local storage for embeddes systems, I believe I could use this to create a separate database server that can be interacted with via an API. I think exposing this with an API via a library would be an interesting expansion on this project, with the goal of interacting with it via a web application. This would provide me with the opportunity to experiment with communicating with external applications and with concurrency, beginning to implement the ACID properties found in most databases.
+The next step would be to investigate concurrency in this project. Though SQLite is frequently used as local storage for embedded and IOT systems, I believe I could use this to create a separate database server that can be interacted with via an API. I think exposing this with an API via a library would be an interesting expansion on this project, with the goal of interacting with it via a web application. This would provide me with the opportunity to experiment with communicating with external applications and with concurrency, beginning to implement the ACID properties found in most databases.
