@@ -35,7 +35,7 @@ pub fn print_schema() -> Result<(), ColoredString>{
     let memory_db: Database = match bincode::deserialize(&buff){
         Ok(exists) => exists,
         Err(_) => {
-            println!("{}", "No database found.. creating new DB instance".red());
+            println!("{}", "No database found.. creating new DB instance".yellow());
             Database{
                 tables : BTreeMap::new(),
             }
@@ -46,7 +46,7 @@ pub fn print_schema() -> Result<(), ColoredString>{
 
     for table in table_names{
         let name  = table;
-        println!("{}", name.yellow());
+        println!("{}", name.blue());
     }
 
     Ok(())
