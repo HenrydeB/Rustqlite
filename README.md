@@ -93,3 +93,61 @@ UPDATE <table_name> SET col1 = <desired_val> WHERE col2 = <curr_val>;
 When executing a command, the Rustqlite virtual machine will provide feedback to you to help you understand if a command was successful or not. Whether it is a SELECT statement, which will return the target table or inform you that the table does not exist, or any other "WRITE" actions to a database, the  virtual machine will respond with a success message or not.
 
 ## Architectural Overview
+
+The general overview of the architecture for this program is as follows
+
+![alt text](https://github.com/HenrydeB/Rustqlite/blob/main/diagrams/arch_overview.drawio.png)
+
+1. User first starts up the program
+2. user inputs the command to be processed by the interpreter
+3. scanner processes the command into tokens and sends to parser
+4. parser processes tokens into relevant Stmt struct for command
+5. Virtual Machine receives statement and processes it
+6. Depending on command type, we will read or write to database
+7. If error, return String converted into ColoredString colored red for error message, if success message is returned and colored green
+
+One of the objectives of this project was to  avoid panics as much as possible. This project relies on error propagation from any one function to the entrypoint, which would then be colored for user experience purposes.
+
+![alt text](https://github.com/HenrydeB/Rustqlite/blob/main/diagrams/structs.drawio.png)
+
+*** Interpreter
+**** enum TokenType
+This enumerable contains different keywords that the scanner is looking out for when defining the token type. We are displaying the category of token types available in the image above, if you would like to see a more concise list of the token types please refer to `src/interpreter/tokens.rs`
+
+**** enum Literal
+This enumerable contains a series of tuple structs that represent the values of the fields to be saved within a table in our database. This acts like an Option type and includes a None for those tokens who do not need a value saved for the Literal field.
+
+**** Token
+This struct contains three fields: the TokenType, the lexeme, and the literal. As stated above, the literal is an Option as not all Tokens will need this field populated, which is why we included the Option type.
+
+*** Virtual Machine
+**** Table
+The table struct is the foundation of this project. Containg a name field along with a vector of Columns, a row field organized as a BTreeMap with the row ID being the key and the Row instance itself as the values, and finally a "schema" HashMap which contains Column Name as the key and the Datatype of the column as the value. This allows us to verify the input and update requests have the required data types before we commit them to our tables.
+
+**** Column
+This is a simple struct, only storing the name and the data type of the column.
+
+**** Row
+This contains a 'values' HashMap, which maps the column name to the literal to be set at that column "cell". 
+
+**** Database
+This is what organizes our `database.rdb` file. Set up as a BTreeMap that maps the table name and the table itself. 
+
+**** Virtual Machine
+The VM struct only contains the command Stmt that was passed in when the struct is created.
+
+*** enum Stmt
+
+![alt text](https://github.com/HenrydeB/Rustqlite/blob/main/diagrams/statements.drawio.png)
+
+As you can see, there are several kinds of statement structs within this enumerable. Because the objective of this project was to get the basic functionality of a database system to work, the statements were set up with a rather strict structure so the program can explicitly expect a certain series of values from the scanner and parser, though there are similarities in structure between some of the statements (where conditions, target values and columns, etc.). This would be a primary target for refactoring if this project were to continue.
+
+*** Crates Used
+I made an effort to avoid using code outside of the standard library as much as I could, however there are a few that I used for stylistic purposes and a couple to help with serialization and binary encoding (for reading/writing the database). 
+
+**** Style
+After spending a lot of time attempting to create a good table structure to print my objects myself, out of frustration I began wondering if I  could find an existing crate that did this service. Fortunately, I did. Text-tables is a fantastic crate that takes in a Vec<Vec<String>> structure, and outputs it in tabular format.
+
+I also used Colored to help with coloring the outputs of the success, error, and schema texts, for an improved user experience.
+
+
