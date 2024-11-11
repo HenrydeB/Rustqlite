@@ -82,7 +82,7 @@ INSERT INTO <table_name> VALUES (val1, val2, val3);
 
 Note that if you don't define a value for the ID field when you are inserting, the ID will be generated for you.
 
-You may also wish to not define a value for a particular column. You may do this if you would like, however no datatypes in this project are nullable, so the missed fields will be filled with their default values (numbers will be 0, varchar will be an empty string, and a bit will be false by default);
+You may also wish to not define a value for a particular column. You may do this if you would like, however no datatypes in this project are nullable, so the missed fields will be filled with their default values (numbers will be 0, varchar will be an empty string, and a bool will be false by default);
 
 ### CREATE TABLE
 To create a new table, use the **CREATE TABLE** command, followed by a comma delimited list within parenthesis that defines the column name and the type.
@@ -92,7 +92,7 @@ CREATE TABLE <table_name> (col1 datatype, col2 datatype);
 Note that an ID field MUST be the first field that gets added, otherwise and ID column will be added for you. Subsequent ID columns must be IDs that reference a separate table.
 
 #### DataTypes
-Possible data types you can pass in are `int`, `varchar`, and `bit`. Here, `int` can take any valid non-floating point number, `varchar` accepts a string of characters surrounded by `' '` single quotes, and a bit will accept the values `true` or `false`. You may wonder, why should `bit` accept written true or false instead of `1` or `0`? The `bit` datatype was written as such to mimic SQL server's syntax, though the implementation on the back end is used as true or false. For the sake of simplicity in this project, I thought using `true` and `false` for this would work as a way to differenciate between this datatype and `int`, seeing as when we save to `database.rdb` it will be encoded the same way anyway.
+Possible data types you can pass in are `int`, `varchar`, and `bool`. Here, `int` can take any valid non-floating point number, `varchar` accepts a string of characters surrounded by `' '` single quotes, and a bool will accept the values `true` or `false`.
 
 ### DROP TABLE
 If you would like to drop a table you have already created, then the command is simply
