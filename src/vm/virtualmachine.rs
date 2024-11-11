@@ -337,7 +337,7 @@ impl VirtualMachine {
         for id in ids{
             match target_table.rows.remove(&id){
                 Some(_) => success = true,
-                None => success = false,
+                None => {},
             }
        }
 
@@ -387,7 +387,7 @@ impl VirtualMachine {
         }
 
         VirtualMachine::write_file(target_table)?;
-        Ok(String::from("Row(s) have been successfully been updated"))
+        Ok(String::from("Row(s) have been successfully updated"))
     }
     
     fn validate_schema(col_names: &Vec<String>,
