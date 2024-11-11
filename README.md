@@ -4,7 +4,7 @@ This project includes a simple SQL interpreter that is able to process a few bas
 CREATE, SELECT, INSERT, UPDATE, DROP and DELETE. 
 
 ## Database Structure
-This project only allows for a single database, which is found in `data/database.rdb` for now. This single database acts similarly to SQLite where all tables are found on one file. This database is organized as a BTreeMap, where the unique identifier of the table is the table name, and the table itself is stored as the value.
+This project only allows for a single database, which is found in `data/database.rdb` for now (you may need to create your own `data` directory when you fork. This single database acts similarly to SQLite where all tables are found on one file. This database is organized as a BTreeMap, where the unique identifier of the table is the table name, and the table itself is stored as the value.
 
 To view your current tables in your database, use the `schema` command.
 
