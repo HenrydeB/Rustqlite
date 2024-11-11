@@ -24,6 +24,12 @@ In it's current state, this program requires you to have Rust and Cargo installe
 After cloning this repository, running `cargo run` in your terminal will open the basic RustQLite 
 repl where you can immediately start writing commands. 
 
+### Running for the First Time
+
+If you are running this program for the first time, I can assume that you may have an empty `data/` directory at the program's root (if not you should create one). Because you have an empty directory, when RustQLite attempts to read a database, this would normally fail because it will not be able to find a valid DB. Instead, you will get a warning message stating `No database found... creating new DB instance`. Then, if the command you entered requires a table to already exist (so not a CREATE), you will receive an error. 
+
+_I would suggest using a CREATE command to start._
+
 After a valid command is entered, the program will either respond with a table defenition for SELECT statements, or a green success message for all other commands. If the command is unsuccessful, the program will return a red error message, which will allow you to try again with updated syntax.
 
 ```SQL
