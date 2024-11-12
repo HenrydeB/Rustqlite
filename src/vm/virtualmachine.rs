@@ -226,15 +226,20 @@ impl VirtualMachine {
             *id 
         };
 
-        let row_vals = values.iter()
-                         .filter(|val| **val != Literal::Number(id))
-                         .map(|lit| lit.clone())
-                         .collect();
+        let row_vals: Vec<Literal> = values.iter()
+                                     .filter(|val| **val != Literal::Number(id))
+                                     .map(|lit| lit.clone())
+                                     .collect();
 
-        let col_names = target_table.columns.iter()
-                                .filter(|id| id.name != "id")
-                                .map(|s| s.name.clone())
-                                .collect();
+        let col_names: Vec<String> = target_table.columns.iter()
+                                    .filter(|id| id.name != "id")
+                                    .map(|s| s.name.clone())
+                                    .collect();
+
+
+        if columns.len() <= 0 && col_names.len() != row_vals.len(){ 
+                    return Err(String::from("Must include values for all columns when target columns are omitted"));
+       }
 
         if columns.len() > 0 {
             VirtualMachine::validate_schema(&columns, &values, &target_table.schema)?;
@@ -244,7 +249,8 @@ impl VirtualMachine {
 
         let row = if columns.len() <= 0 && col_names.len() == row_vals.len(){
             Row::new(col_names, row_vals)
-        } else if columns.len() <= 0 && col_names.len() != row_vals.len(){ 
+        } else if columns.len() <= 0 && col_names.len() != row_vals.len(){ // second time just in
+                                                                           // case 
             return Err(String::from("Must include values for all columns when target columns are omitted"));
         } else {
             let mut filled_rows: Vec<Literal> = Vec::new();

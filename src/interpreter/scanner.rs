@@ -41,9 +41,6 @@ impl<'s> Scanner<'s>{
     }
 
      fn is_alphanumeric(&self, key: &str) -> bool {
-        if key == "true" || key == "false"{
-            return false;
-        }
         key.trim().chars().filter(|w| !w.is_whitespace()).all(|c| c.is_alphanumeric())
     }
 
@@ -110,7 +107,7 @@ impl<'s> Scanner<'s>{
                         Some(t_type) => t_type,
                         None => return Err("invalid token"),
                 };
-                let literal_type = self.get_literal_type(&input);
+                let literal_type = self.get_literal_type(&input, false);
                 
                 let new_token = Token::new(token_type, input, literal_type);
                 tokens.push(new_token); 
@@ -161,7 +158,7 @@ impl<'s> Scanner<'s>{
         }
        
         if open_string == true {
-            let literal_type = self.get_literal_type(&coll); 
+            let literal_type = self.get_literal_type(&coll, is_string); 
             return Ok(Token::new(TokenType::String, coll, literal_type));
         }
 
@@ -170,7 +167,7 @@ impl<'s> Scanner<'s>{
             None => return Err("invalid token"),
         };
 
-        let literal_type = self.get_literal_type(&coll);
+        let literal_type = self.get_literal_type(&coll, is_string);
         
         let new_token = Token::new(token_type, coll, literal_type);
         Ok(new_token)
@@ -208,7 +205,7 @@ impl<'s> Scanner<'s>{
             ";" => Some(TokenType::SemiColon),
             "\0" => Some(TokenType::EOF), //error
             _ => {
-               if self.is_numeric(keyword) {
+               if self.is_numeric(keyword) && !is_string {
                     Some(TokenType::Number) //will need to expand for float
                } else if is_string { 
                     Some(TokenType::String) 
@@ -221,15 +218,15 @@ impl<'s> Scanner<'s>{
         }
     }
 
-    fn get_literal_type(&self, literal: &str) -> Option<Literal>{
+    fn get_literal_type(&self, literal: &str, is_string: bool) -> Option<Literal>{
         
-        if self.is_numeric(literal) {
+        if self.is_numeric(literal) && !is_string{
             Some(Literal::Number(literal.parse::<i64>().unwrap()))
-        } else if self.is_alphanumeric(literal) {
+        } else if self.is_alphanumeric(literal) && is_string {
             Some(Literal::String(String::from(literal)))
-        } else if literal == "true" {
+        } else if literal == "true" && !is_string{
             Some(Literal::Boolean(true))
-        } else if literal == "false" { 
+        } else if literal == "false" && !is_string { 
             Some(Literal::Boolean(false))
         } else if literal == "null" {
             Some(Literal::Null)
