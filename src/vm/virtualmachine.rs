@@ -242,8 +242,10 @@ impl VirtualMachine {
             VirtualMachine::validate_schema(&col_names, &row_vals, &target_table.schema)?;
         }  
 
-        let row = if columns.len() <= 0 {
+        let row = if columns.len() <= 0 && col_names.len() == row_vals.len(){
             Row::new(col_names, row_vals)
+        } else if columns.len() <= 0 && col_names.len() != row_vals.len(){ 
+            return Err(String::from("Must include values for all columns when target columns are omitted"));
         } else {
             let mut filled_rows: Vec<Literal> = Vec::new();
 
