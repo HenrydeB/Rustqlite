@@ -28,7 +28,7 @@ impl VirtualMachine {
         }
     }
 
-    pub fn run(&mut self) -> Result<String, String>{ //at some point change to Table, &str
+    pub fn run(&mut self) -> Result<String, String>{ 
         let result = match &self.command {
             Stmt::Select{table_name, target_columns, where_conditions} => 
                 VirtualMachine::select_table(table_name, target_columns, where_conditions),
@@ -111,7 +111,7 @@ impl VirtualMachine {
                         };
                         row_data.push(data_val);
                     },
-                    None => {}, //throws err
+                    None => {}, 
                    }
                 }
                 table_data.push(row_data); 
@@ -135,11 +135,11 @@ impl VirtualMachine {
                             Literal::String(val) => String::from(val),
                             Literal::Boolean(val) => val.to_string(),
                             Literal::Null => String::from("NULL"),
-                            _ => String::from(""), // throws err
+                            _ => String::from(""), 
                         };
                         row_data.push(data_val);
                     },
-                    None => {}, //throws err
+                    None => {}, 
                    }
                }
                table_data.push(row_data);
@@ -184,6 +184,7 @@ impl VirtualMachine {
         //if written, we print to user success, then return Ok
         Ok(String::from("Table created successfully"))
     }
+
 
     fn insert_into_table(name: &str, 
                          columns: &Vec<String>, 
@@ -287,9 +288,6 @@ impl VirtualMachine {
         Ok(String::from("Command committed successfully"))
     }
 
-   ///if we do end up going with the single page format, this will likely look
-   ///more like the delete_from_table() format to follow
-   ///
     fn drop_table(name: &String) -> Result<String, String>{
      
         let get_file = OpenOptions::new()
@@ -490,9 +488,6 @@ impl VirtualMachine {
         Ok(ids)
     }
     
-
-    //for now each table will have it's own file
-    //then we will figure out how to do the actual data model
     fn read_file(tablename: &str) -> Result<Table, String> { 
        
         let get_file = OpenOptions::new()

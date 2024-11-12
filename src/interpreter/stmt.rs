@@ -1,9 +1,5 @@
 use crate::interpreter::token::{Literal};
 
-//if all we may have to 
-//figure something out
-//
-//commenting out lifetime in case we want to swap out the Strings for &str
 #[derive(Debug, Clone)]
 pub enum Stmt{
    Select{
